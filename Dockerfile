@@ -19,6 +19,8 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # App code
+COPY backend/alembic.ini ./backend/alembic.ini
+COPY backend/alembic ./backend/alembic
 COPY backend/app ./backend/app
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
