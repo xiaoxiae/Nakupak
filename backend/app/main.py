@@ -29,15 +29,15 @@ def _run_alembic_migrations():
     )
 
     # If the DB already has tables but no alembic_version table,
-    # stamp it so Alembic doesn't try to re-create existing tables.
+    # stamp it at the initial migration (which matches the pre-alembic schema)
+    # so that subsequent migrations still run.
     with engine.connect() as conn:
         ctx = MigrationContext.configure(conn)
         current_rev = ctx.get_current_revision()
         if current_rev is None:
             insp = inspect(engine)
             if insp.get_table_names():
-                command.stamp(alembic_cfg, "head")
-                return
+                command.stamp(alembic_cfg, "91105d06de6e")
 
     command.upgrade(alembic_cfg, "head")
 
