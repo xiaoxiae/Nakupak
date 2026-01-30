@@ -14,10 +14,15 @@ from .routers import auth, items, list, recipes, sessions
 
 def _run_alembic_migrations():
     """Run Alembic migrations to head on startup."""
+    import sys
     from alembic.config import Config
     from alembic import command
     from alembic.runtime.migration import MigrationContext
     from sqlalchemy import inspect
+
+    backend_dir = str(Path(__file__).resolve().parent.parent)
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
 
     alembic_cfg = Config(
         str(Path(__file__).resolve().parent.parent / "alembic.ini")
