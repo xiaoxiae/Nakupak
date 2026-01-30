@@ -114,6 +114,7 @@ export default {
     newRecipe: 'Nový recept',
     recipeNamePlaceholder: 'Název receptu',
     itemsLabel: 'Položky',
+    searchItems: 'Hledat položky...',
   },
   toast: {
     deleted: 'Smazáno „{name}"',

@@ -3,7 +3,8 @@ import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import BaseModal from './BaseModal.vue'
-import ItemBadge from './ItemBadge.vue'
+import ItemCard from './ItemCard.vue'
+import ItemSearchPicker from './ItemSearchPicker.vue'
 
 const { t } = useI18n()
 
@@ -47,17 +48,27 @@ watch(() => props.show, (newVal) => {
   }
 })
 
-function toggleItem(itemId) {
-  const index = selectedItems.value.findIndex(i => i.item_id === itemId)
-  if (index >= 0) {
-    selectedItems.value.splice(index, 1)
-  } else {
-    selectedItems.value.push({ item_id: itemId, quantity: 1 })
+function addItem(item) {
+  if (!selectedItems.value.some(i => i.item_id === item.id)) {
+    selectedItems.value.push({ item_id: item.id, quantity: 1 })
   }
 }
 
-function isSelected(itemId) {
-  return selectedItems.value.some(i => i.item_id === itemId)
+function getItem(itemId) {
+  return listStore.items.find(i => i.id === itemId)
+}
+
+function handleIncrement(si) {
+  si.quantity++
+}
+
+function handleDecrement(si) {
+  if (si.quantity <= 1) {
+    const index = selectedItems.value.indexOf(si)
+    if (index >= 0) selectedItems.value.splice(index, 1)
+  } else {
+    si.quantity--
+  }
 }
 
 function save() {
@@ -100,18 +111,23 @@ function close() {
       </div>
     </div>
 
-    <div>
+    <div class="mb-4">
       <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.itemsLabel') }}</label>
-      <div class="flex flex-wrap gap-2">
-        <ItemBadge
-          v-for="item in listStore.items"
-          :key="item.id"
-          :name="item.name"
-          :selected="isSelected(item.id)"
-          clickable
-          @click="toggleItem(item.id)"
+      <div v-if="selectedItems.length > 0" class="mb-3">
+        <ItemCard
+          v-for="si in selectedItems"
+          :key="si.item_id"
+          :item="getItem(si.item_id)"
+          :quantity="si.quantity"
+          @increment="handleIncrement(si)"
+          @decrement="handleDecrement(si)"
         />
       </div>
+      <ItemSearchPicker
+        :placeholder="t('common.searchItems')"
+        @select="addItem"
+        @create="addItem"
+      />
     </div>
 
     <template #footer>

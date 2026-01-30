@@ -114,6 +114,7 @@ export default {
     newRecipe: 'New Recipe',
     recipeNamePlaceholder: 'Recipe name',
     itemsLabel: 'Items',
+    searchItems: 'Search items...',
   },
   toast: {
     deleted: 'Deleted "{name}"',
