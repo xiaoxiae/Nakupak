@@ -17,9 +17,7 @@ const { t } = useI18n()
 const listStore = useListStore()
 const toastStore = useToastStore()
 
-const loaded = ref(false)
 const showClearConfirm = ref(false)
-const hadItemsOnLoad = ref(listStore.listItems.length > 0)
 
 onMounted(async () => {
   await Promise.all([
@@ -29,11 +27,6 @@ onMounted(async () => {
     listStore.fetchRecipes(),
     listStore.fetchPool(),
   ])
-
-  hadItemsOnLoad.value = hadItemsOnLoad.value || listStore.listItems.length > 0
-
-  // Skip fab enter animation on initial load
-  requestAnimationFrame(() => { loaded.value = true })
 })
 
 async function handleIncrement(listItem) {
@@ -162,14 +155,7 @@ function getRecipeColor(listItem) {
     />
 
     <template #fab>
-      <button
-        v-if="!loaded && listStore.checkedCount > 0"
-        class="px-4 py-3 bg-success text-white rounded-xl font-medium shadow-lg hover:opacity-90"
-        @click="handlePurchase"
-      >
-        {{ t('mainList.purchased') }}
-      </button>
-      <AnimatePresence v-if="loaded">
+      <AnimatePresence :initial="false">
         <Motion
           v-if="listStore.checkedCount > 0"
           key="purchased"
