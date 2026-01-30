@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import create_engine, event
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
@@ -8,12 +9,11 @@ from app.main import app
 from app.models import Household
 from app.auth import create_access_token, get_current_household
 
-# In-memory SQLite with shared cache so multiple connections see the same data
-SQLALCHEMY_DATABASE_URL = "sqlite:///file::memory:?cache=shared"
-
+# In-memory SQLite with StaticPool so all connections share the same database
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
+    "sqlite://",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 
 # Enable WAL-like behaviour: SQLite needs PRAGMA foreign_keys per connection

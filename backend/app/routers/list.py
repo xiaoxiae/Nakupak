@@ -163,7 +163,7 @@ def add_recipe_to_list(
         ).first()
 
         if existing:
-            existing.quantity = recipe_item.quantity
+            existing.quantity += recipe_item.quantity
             existing.unit = recipe_item.unit
             existing.from_recipe_id = recipe_id
             db.commit()
