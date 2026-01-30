@@ -24,6 +24,7 @@ function toggleTheme() {
   document.documentElement.classList.toggle('dark', isDark.value)
   document.documentElement.classList.toggle('light', !isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark.value ? '#002b36' : '#fdf6e3')
 }
 
 function toggleLanguage() {

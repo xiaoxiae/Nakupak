@@ -5,13 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#3b82f6" />
+    <meta name="theme-color" content="#fdf6e3" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.json" />
     <title>Nákupák</title>
     <script>
-      (function(){var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.add(t)})()
+      (function () {
+        var t = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')
+        document.documentElement.classList.add(t)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#002b36' : '#fdf6e3')
+      })()
     </script>
     <script defer src="%VITE_UMAMI_URL%" data-website-id="%VITE_UMAMI_WEBSITE_ID%" data-domains="%VITE_UMAMI_DOMAINS%"></script>
   </head>
