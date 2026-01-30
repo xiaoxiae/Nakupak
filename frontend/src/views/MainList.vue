@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
@@ -22,6 +22,7 @@ const sessionStore = useSessionStore()
 const search = ref('')
 const loaded = ref(false)
 const showClearConfirm = ref(false)
+const hadItemsOnLoad = ref(listStore.listItems.length > 0)
 
 onMounted(async () => {
   await Promise.all([
@@ -36,6 +37,8 @@ onMounted(async () => {
   if (sessionStore.isActive) {
     router.push('/shopping')
   }
+
+  hadItemsOnLoad.value = hadItemsOnLoad.value || listStore.listItems.length > 0
 
   // Skip fab enter animation on initial load
   requestAnimationFrame(() => { loaded.value = true })
@@ -238,7 +241,7 @@ function getRecipeColor(listItem) {
         <Motion
           v-if="listStore.listItems.length > 0"
           key="start-shopping"
-          :initial="{ opacity: 0, scale: 0.9 }"
+          :initial="hadItemsOnLoad ? false : { opacity: 0, scale: 0.9 }"
           :animate="{ opacity: 1, scale: 1 }"
           :exit="{ opacity: 0, scale: 0.9 }"
           :transition="{ duration: 0.2 }"

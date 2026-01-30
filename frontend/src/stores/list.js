@@ -109,21 +109,20 @@ export const useListStore = defineStore('list', () => {
   }
 
   async function addItem(itemId, quantity = 1) {
-    // Optimistically update local state
     const existing = listItems.value.find(i => i.item_id === itemId)
     if (existing) {
       existing.quantity += quantity
-    } else {
-      const item = items.value.find(i => i.id === itemId)
-      listItems.value.push({
-        id: `temp-${Date.now()}`,
-        item_id: itemId,
-        item: item || null,
-        quantity,
-      })
     }
 
-    await shoppingList.add([{ item_id: itemId, quantity }])
+    const response = await shoppingList.add([{ item_id: itemId, quantity }])
+
+    if (existing) {
+      const updated = response.data.find(i => i.item_id === itemId)
+      if (updated) existing.quantity = updated.quantity
+    } else {
+      const added = response.data.find(i => i.item_id === itemId)
+      if (added) listItems.value.push(added)
+    }
   }
 
   async function updateQuantity(listItemId, quantity) {
