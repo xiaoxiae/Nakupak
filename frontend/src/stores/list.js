@@ -108,32 +108,75 @@ export const useListStore = defineStore('list', () => {
     sessions.value = sessions.value.filter(s => s.id !== sessionId)
   }
 
-  async function addItem(itemId, quantity = 1) {
+  const checkedCount = computed(() =>
+    listItems.value.filter(i => i.checked).length
+  )
+
+  async function toggleCheck(listItemId) {
+    const item = listItems.value.find(i => i.id === listItemId)
+    if (!item) return
+    item.checked = !item.checked
+    try {
+      const response = await shoppingList.toggleCheck(listItemId)
+      item.checked = response.data.checked
+    } catch {
+      item.checked = !item.checked
+    }
+  }
+
+  async function purchaseChecked() {
+    const checked = listItems.value.filter(i => i.checked)
+    const count = checked.length
+    if (count === 0) return 0
+
+    listItems.value = listItems.value.filter(i => !i.checked)
+    try {
+      await shoppingList.purchase()
+    } catch {
+      await fetchList()
+    }
+    return count
+  }
+
+  async function addItem(itemId, quantity = 1, unit = 'x') {
     const existing = listItems.value.find(i => i.item_id === itemId)
     if (existing) {
-      existing.quantity += quantity
+      if (existing.unit === unit) {
+        existing.quantity += quantity
+      } else {
+        existing.quantity = quantity
+        existing.unit = unit
+      }
     }
 
-    const response = await shoppingList.add([{ item_id: itemId, quantity }])
+    const response = await shoppingList.add([{ item_id: itemId, quantity, unit }])
 
     if (existing) {
       const updated = response.data.find(i => i.item_id === itemId)
-      if (updated) existing.quantity = updated.quantity
+      if (updated) {
+        existing.quantity = updated.quantity
+        existing.unit = updated.unit
+      }
     } else {
       const added = response.data.find(i => i.item_id === itemId)
       if (added) listItems.value.push(added)
     }
   }
 
-  async function updateQuantity(listItemId, quantity) {
+  async function updateQuantity(listItemId, quantity, unit) {
     if (quantity <= 0) {
       await removeItem(listItemId)
     } else {
       // Optimistically update local state
       const item = listItems.value.find(i => i.id === listItemId)
-      if (item) item.quantity = quantity
+      if (item) {
+        item.quantity = quantity
+        if (unit !== undefined) item.unit = unit
+      }
 
-      await shoppingList.update(listItemId, quantity)
+      const data = { quantity }
+      if (unit !== undefined) data.unit = unit
+      await shoppingList.update(listItemId, data)
     }
   }
 
@@ -238,5 +281,8 @@ export const useListStore = defineStore('list', () => {
     bulkDeleteItems,
     bulkSetCategory,
     mergeItems,
+    checkedCount,
+    toggleCheck,
+    purchaseChecked,
   }
 })

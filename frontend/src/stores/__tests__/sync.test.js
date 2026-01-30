@@ -2,9 +2,8 @@ import { setActivePinia, createPinia } from 'pinia'
 import { vi } from 'vitest'
 
 vi.mock('../../services/api', () => ({
-  sessions: {
+  shoppingList: {
     toggleCheck: vi.fn(),
-    getActive: vi.fn(),
   },
 }))
 
@@ -15,8 +14,7 @@ vi.mock('../../services/offline', () => ({
 
 import { useSyncStore } from '../sync'
 import { useListStore } from '../list'
-import { useSessionStore } from '../session'
-import { sessions } from '../../services/api'
+import { shoppingList } from '../../services/api'
 import { getQueuedActions, removeFromQueue } from '../../services/offline'
 
 describe('sync store', () => {

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -52,8 +52,10 @@ class ShoppingListItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
-    quantity = Column(Integer, default=1)
+    quantity = Column(Float, default=1)
+    unit = Column(String, default="x")
     added_at = Column(DateTime, server_default=func.now())
+    checked = Column(Boolean, default=False)
     from_recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=True)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
 
@@ -81,7 +83,8 @@ class RecipeItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     recipe_id = Column(Integer, ForeignKey("recipes.id"), nullable=False)
     item_id = Column(Integer, ForeignKey("items.id"), nullable=False)
-    quantity = Column(Integer, default=1)
+    quantity = Column(Float, default=1)
+    unit = Column(String, default="x")
 
     recipe = relationship("Recipe", back_populates="recipe_items")
     item = relationship("Item", back_populates="recipe_items")
@@ -106,7 +109,8 @@ class SessionItem(Base):
     session_id = Column(Integer, ForeignKey("shopping_sessions.id"), nullable=False)
     item_id = Column(Integer, ForeignKey("items.id", ondelete="SET NULL"), nullable=True)
     item_name = Column(String, nullable=False)
-    quantity = Column(Integer, default=1)
+    quantity = Column(Float, default=1)
+    unit = Column(String, default="x")
     checked = Column(Boolean, default=False)
     checked_at = Column(DateTime, nullable=True)
 

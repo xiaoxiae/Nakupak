@@ -5,7 +5,7 @@ import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
 import { nameCompare } from '../utils/sort'
 import { recipes as recipesApi } from '../services/api'
-import { Pencil, Trash2, Plus, Check, ListPlus, Tag, Merge, CookingPot, X } from 'lucide-vue-next'
+import { Pencil, Trash2, Plus, ListPlus, Tag, Merge, CookingPot, X } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedCategoryList from '../components/AnimatedCategoryList.vue'
@@ -224,24 +224,17 @@ const mergeTargetName = computed(() => {
       <EmptyState v-if="filteredItems.length === 0 && searchQuery" :title="t('items.noMatch', { query: searchQuery })" />
       <EmptyState v-else-if="filteredItems.length === 0" :title="t('items.emptyTitle')" :subtitle="t('items.emptySubtitle')" />
 
-      <AnimatedCategoryList :groups="filteredGroupedItems" v-slot="{ item, group }">
+      <AnimatedCategoryList :groups="filteredGroupedItems" v-slot="{ group }">
         <ItemRow
+          v-for="item in group.items"
+          :key="item.id"
           :name="item.name"
           :accent-color="group.category?.color"
+          :checked="selectedIds.has(item.id)"
           :clickable="true"
           @click="toggleSelect(item.id)"
+          @toggle-check="toggleSelect(item.id)"
         >
-          <template #prefix>
-            <div
-              class="w-5 h-5 mr-3 rounded border-2 flex items-center justify-center shrink-0 transition-colors duration-100"
-              :class="selectedIds.has(item.id)
-                ? 'bg-primary border-primary'
-                : 'border-text-muted bg-transparent'"
-              @click.stop="toggleSelect(item.id)"
-            >
-              <Check v-if="selectedIds.has(item.id)" class="w-3.5 h-3.5 text-white" />
-            </div>
-          </template>
           <template #actions>
             <div class="flex items-center gap-1">
               <IconButton small @click.stop="addToList(item)">

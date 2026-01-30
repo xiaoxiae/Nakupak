@@ -1,22 +1,21 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
-import { useSessionStore } from '../stores/session'
+import { useToastStore } from '../stores/toast'
+import { getUnit } from '../utils/units'
 import { Trash2 } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedCategoryList from '../components/AnimatedCategoryList.vue'
-import ItemCard from '../components/ItemCard.vue'
+import ItemCardList from '../components/ItemCardList.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemSearchPicker from '../components/ItemSearchPicker.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 
 const { t } = useI18n()
-const router = useRouter()
 const listStore = useListStore()
-const sessionStore = useSessionStore()
+const toastStore = useToastStore()
 
 const loaded = ref(false)
 const showClearConfirm = ref(false)
@@ -29,12 +28,7 @@ onMounted(async () => {
     listStore.fetchCategories(),
     listStore.fetchRecipes(),
     listStore.fetchPool(),
-    sessionStore.fetchActive(),
   ])
-
-  if (sessionStore.isActive) {
-    router.push('/shopping')
-  }
 
   hadItemsOnLoad.value = hadItemsOnLoad.value || listStore.listItems.length > 0
 
@@ -43,16 +37,37 @@ onMounted(async () => {
 })
 
 async function handleIncrement(listItem) {
-  await listStore.updateQuantity(listItem.id, listItem.quantity + 1)
+  const step = getUnit(listItem.unit || 'x').step
+  await listStore.updateQuantity(listItem.id, listItem.quantity + step)
 }
 
 async function handleDecrement(listItem) {
-  await listStore.updateQuantity(listItem.id, listItem.quantity - 1)
+  const u = getUnit(listItem.unit || 'x')
+  const newQty = listItem.quantity - u.step
+  if (newQty < u.step) {
+    await listStore.removeItem(listItem.id)
+  } else {
+    await listStore.updateQuantity(listItem.id, newQty)
+  }
 }
 
-async function startShopping() {
-  await sessionStore.startSession()
-  router.push('/shopping')
+async function handleUpdateQuantity(listItem, newQty) {
+  if (newQty <= 0) {
+    await listStore.removeItem(listItem.id)
+  } else {
+    await listStore.updateQuantity(listItem.id, newQty)
+  }
+}
+
+async function handleChangeUnit(listItem, newUnit) {
+  await listStore.updateQuantity(listItem.id, listItem.quantity, newUnit)
+}
+
+async function handlePurchase() {
+  const count = await listStore.purchaseChecked()
+  if (count > 0) {
+    toastStore.show(t('mainList.purchasedMessage', { count }))
+  }
 }
 
 async function addToList(item) {
@@ -102,13 +117,23 @@ function getRecipeColor(listItem) {
         </button>
       </Motion>
       </AnimatePresence>
-      <AnimatedCategoryList :groups="listStore.groupedByCategory" v-slot="{ item: listItem }">
-            <ItemCard
-              :item="listItem.item"
-              :quantity="listItem.quantity"
-              :recipe-color="getRecipeColor(listItem)"
-              @increment="handleIncrement(listItem)"
-              @decrement="handleDecrement(listItem)"
+      <AnimatedCategoryList :groups="listStore.groupedByCategory" v-slot="{ group }">
+            <ItemCardList
+              :items="group.items.map(li => ({
+                id: li.id,
+                item: li.item,
+                quantity: li.quantity,
+                unit: li.unit || 'x',
+                recipeColor: getRecipeColor(li),
+                checked: !!li.checked,
+                _raw: li,
+              }))"
+              @increment="(entry) => handleIncrement(entry._raw)"
+              @decrement="(entry) => handleDecrement(entry._raw)"
+              @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
+              @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
+              @remove="(entry) => listStore.removeItem(entry._raw.id)"
+              @toggle-check="(entry) => listStore.toggleCheck(entry._raw.id)"
             />
       </AnimatedCategoryList>
       <AnimatePresence :initial="false">
@@ -138,26 +163,26 @@ function getRecipeColor(listItem) {
 
     <template #fab>
       <button
-        v-if="!loaded && listStore.listItems.length > 0"
+        v-if="!loaded && listStore.checkedCount > 0"
         class="px-4 py-3 bg-success text-white rounded-xl font-medium shadow-lg hover:opacity-90"
-        @click="startShopping"
+        @click="handlePurchase"
       >
-        {{ t('mainList.startShopping') }}
+        {{ t('mainList.purchased') }}
       </button>
       <AnimatePresence v-if="loaded">
         <Motion
-          v-if="listStore.listItems.length > 0"
-          key="start-shopping"
-          :initial="hadItemsOnLoad ? false : { opacity: 0, scale: 0.9 }"
+          v-if="listStore.checkedCount > 0"
+          key="purchased"
+          :initial="{ opacity: 0, scale: 0.9 }"
           :animate="{ opacity: 1, scale: 1 }"
           :exit="{ opacity: 0, scale: 0.9 }"
           :transition="{ duration: 0.2 }"
         >
           <button
             class="px-4 py-3 bg-success text-white rounded-xl font-medium shadow-lg hover:opacity-90"
-            @click="startShopping"
+            @click="handlePurchase"
           >
-            {{ t('mainList.startShopping') }}
+            {{ t('mainList.purchased') }}
           </button>
         </Motion>
       </AnimatePresence>

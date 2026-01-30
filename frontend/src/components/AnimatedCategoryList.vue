@@ -1,7 +1,6 @@
 <script setup>
 import { Motion, AnimatePresence } from 'motion-v'
 import CategorySection from './CategorySection.vue'
-import AnimatedList from './AnimatedList.vue'
 
 defineProps({
   groups: {
@@ -16,18 +15,16 @@ defineProps({
     <Motion
       v-for="group in groups"
       :key="group.category?.id || 'uncategorized'"
-      :initial="{ opacity: 0, height: 0 }"
-      :animate="{ opacity: 1, height: 'auto' }"
-      :exit="{ opacity: 0, height: 0 }"
+      :initial="{ opacity: 0 }"
+      :animate="{ opacity: 1 }"
+      :exit="{ opacity: 0 }"
       :transition="{ duration: 0.25, ease: 'easeOut' }"
     >
       <CategorySection
         :category="group.category"
         :count="group.items.length"
       >
-        <AnimatedList :items="group.items" v-slot="{ item }">
-          <slot :item="item" :group="group" />
-        </AnimatedList>
+        <slot :group="group" />
       </CategorySection>
     </Motion>
   </AnimatePresence>

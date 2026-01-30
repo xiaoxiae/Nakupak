@@ -2,8 +2,9 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
+import { getUnit } from '../utils/units'
 import BaseModal from './BaseModal.vue'
-import ItemCard from './ItemCard.vue'
+import ItemCardList from './ItemCardList.vue'
 import ItemSearchPicker from './ItemSearchPicker.vue'
 
 const { t } = useI18n()
@@ -18,11 +19,13 @@ const emit = defineEmits(['close', 'save'])
 
 const listStore = useListStore()
 
-const recipeName = ref('')
-const recipeColor = ref('#3b82f6')
-const selectedItems = ref([])
+function randomColor() {
+  return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')
+}
 
-const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+const recipeName = ref('')
+const recipeColor = ref(randomColor())
+const selectedItems = ref([])
 
 const title = computed(() => props.editRecipe ? t('common.editRecipe') : t('common.newRecipe'))
 const buttonText = computed(() => props.editRecipe ? t('common.save') : t('common.create'))
@@ -34,15 +37,16 @@ watch(() => props.show, (newVal) => {
       recipeColor.value = props.editRecipe.color
       selectedItems.value = props.editRecipe.recipe_items.map(pi => ({
         item_id: pi.item_id,
-        quantity: pi.quantity
+        quantity: pi.quantity,
+        unit: pi.unit || 'x',
       }))
     } else if (props.preselectedItemIds?.length) {
       recipeName.value = ''
-      recipeColor.value = '#3b82f6'
-      selectedItems.value = props.preselectedItemIds.map(id => ({ item_id: id, quantity: 1 }))
+      recipeColor.value = randomColor()
+      selectedItems.value = props.preselectedItemIds.map(id => ({ item_id: id, quantity: 1, unit: 'x' }))
     } else {
       recipeName.value = ''
-      recipeColor.value = '#3b82f6'
+      recipeColor.value = randomColor()
       selectedItems.value = []
     }
   }
@@ -50,7 +54,7 @@ watch(() => props.show, (newVal) => {
 
 function addItem(item) {
   if (!selectedItems.value.some(i => i.item_id === item.id)) {
-    selectedItems.value.push({ item_id: item.id, quantity: 1 })
+    selectedItems.value.push({ item_id: item.id, quantity: 1, unit: 'x' })
   }
 }
 
@@ -59,16 +63,37 @@ function getItem(itemId) {
 }
 
 function handleIncrement(si) {
-  si.quantity++
+  const step = getUnit(si.unit || 'x').step
+  si.quantity += step
 }
 
 function handleDecrement(si) {
-  if (si.quantity <= 1) {
+  const u = getUnit(si.unit || 'x')
+  const newQty = si.quantity - u.step
+  if (newQty < u.step) {
     const index = selectedItems.value.indexOf(si)
     if (index >= 0) selectedItems.value.splice(index, 1)
   } else {
-    si.quantity--
+    si.quantity = newQty
   }
+}
+
+function handleUpdateQuantity(si, newQty) {
+  if (newQty <= 0) {
+    const index = selectedItems.value.indexOf(si)
+    if (index >= 0) selectedItems.value.splice(index, 1)
+  } else {
+    si.quantity = newQty
+  }
+}
+
+function handleRemoveItem(si) {
+  const index = selectedItems.value.indexOf(si)
+  if (index >= 0) selectedItems.value.splice(index, 1)
+}
+
+function handleChangeUnit(si, newUnit) {
+  si.unit = newUnit
 }
 
 function save() {
@@ -89,24 +114,17 @@ function close() {
   <BaseModal :show="show" :title="title" @close="close">
     <div class="mb-4">
       <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.name') }}</label>
-      <input
-        v-model="recipeName"
-        type="text"
-        :placeholder="t('common.recipeNamePlaceholder')"
-        class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
-      />
-    </div>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.color') }}</label>
-      <div class="flex gap-2">
-        <button
-          v-for="color in colors"
-          :key="color"
-          class="w-8 h-8 rounded-full border-2 p-0"
-          :class="recipeColor === color ? 'border-gray-900 dark:border-white' : 'border-transparent'"
-          :style="{ background: color }"
-          @click="recipeColor = color"
+      <div class="flex gap-2 items-center">
+        <input
+          v-model="recipeName"
+          type="text"
+          :placeholder="t('common.recipeNamePlaceholder')"
+          class="flex-1 px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
+        />
+        <input
+          v-model="recipeColor"
+          type="color"
+          class="w-9 h-9 rounded-full border border-border p-0 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0"
         />
       </div>
     </div>
@@ -114,13 +132,19 @@ function close() {
     <div class="mb-4">
       <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.itemsLabel') }}</label>
       <div v-if="selectedItems.length > 0" class="mb-3">
-        <ItemCard
-          v-for="si in selectedItems"
-          :key="si.item_id"
-          :item="getItem(si.item_id)"
-          :quantity="si.quantity"
-          @increment="handleIncrement(si)"
-          @decrement="handleDecrement(si)"
+        <ItemCardList
+          :items="selectedItems.map(si => ({
+            id: si.item_id,
+            item: getItem(si.item_id),
+            quantity: si.quantity,
+            unit: si.unit || 'x',
+            _raw: si,
+          }))"
+          @increment="(entry) => handleIncrement(entry._raw)"
+          @decrement="(entry) => handleDecrement(entry._raw)"
+          @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
+          @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
+          @remove="(entry) => handleRemoveItem(entry._raw)"
         />
       </div>
       <ItemSearchPicker

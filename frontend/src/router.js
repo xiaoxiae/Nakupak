@@ -31,13 +31,7 @@ const routes = [
     component: () => import('./views/Items.vue'),
     meta: { requiresAuth: true },
   },
-  {
-    path: '/shopping',
-    name: 'Shopping',
-    component: () => import('./views/Shopping.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
+{
     path: '/settings',
     name: 'Settings',
     component: () => import('./views/Settings.vue'),

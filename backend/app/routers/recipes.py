@@ -37,7 +37,8 @@ def create_recipe(
         recipe_item = RecipeItem(
             recipe_id=db_recipe.id,
             item_id=item.item_id,
-            quantity=item.quantity
+            quantity=item.quantity,
+            unit=item.unit,
         )
         db.add(recipe_item)
 
@@ -71,7 +72,8 @@ def update_recipe(
             recipe_item = RecipeItem(
                 recipe_id=recipe_id,
                 item_id=item.item_id,
-                quantity=item.quantity
+                quantity=item.quantity,
+                unit=item.unit,
             )
             db.add(recipe_item)
 

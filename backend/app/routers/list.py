@@ -5,10 +5,10 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 
 from ..database import get_db
-from ..models import Household, Item, ShoppingListItem, Recipe, RecipeItem, SessionItem
+from ..models import Household, Item, ShoppingListItem, Recipe, RecipeItem, SessionItem, ShoppingSession
 from ..schemas import (
     ShoppingListItemCreate, ShoppingListItemUpdate, ShoppingListItemResponse,
-    AddItemsRequest, BulkIdsRequest, PoolItemResponse, ItemResponse
+    AddItemsRequest, BulkIdsRequest, PoolItemResponse, ItemResponse, ShoppingSessionResponse
 )
 from ..auth import get_current_household
 from ..websocket import broadcast_update
@@ -41,7 +41,11 @@ def add_items_to_list(
         ).first()
 
         if existing:
-            existing.quantity += item_data.quantity
+            if existing.unit == item_data.unit:
+                existing.quantity += item_data.quantity
+            else:
+                existing.quantity = item_data.quantity
+                existing.unit = item_data.unit
             db.commit()
             db.refresh(existing)
             added_items.append(existing)
@@ -49,6 +53,7 @@ def add_items_to_list(
             new_item = ShoppingListItem(
                 item_id=item_data.item_id,
                 quantity=item_data.quantity,
+                unit=item_data.unit,
                 household_id=household.id
             )
             db.add(new_item)
@@ -76,6 +81,8 @@ def update_list_item(
         raise HTTPException(status_code=404, detail="List item not found")
 
     item.quantity = update.quantity
+    if update.unit is not None:
+        item.unit = update.unit
     db.commit()
     db.refresh(item)
     background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
@@ -156,7 +163,8 @@ def add_recipe_to_list(
         ).first()
 
         if existing:
-            existing.quantity += recipe_item.quantity
+            existing.quantity = recipe_item.quantity
+            existing.unit = recipe_item.unit
             existing.from_recipe_id = recipe_id
             db.commit()
             db.refresh(existing)
@@ -165,6 +173,7 @@ def add_recipe_to_list(
             new_item = ShoppingListItem(
                 item_id=recipe_item.item_id,
                 quantity=recipe_item.quantity,
+                unit=recipe_item.unit,
                 household_id=household.id,
                 from_recipe_id=recipe_id
             )
@@ -175,6 +184,69 @@ def add_recipe_to_list(
 
     background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
     return added_items
+
+
+@router.put("/list/{list_item_id}/check")
+def toggle_check(
+    list_item_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household)
+):
+    item = db.query(ShoppingListItem).filter(
+        ShoppingListItem.id == list_item_id,
+        ShoppingListItem.household_id == household.id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="List item not found")
+
+    item.checked = not item.checked
+    db.commit()
+    db.refresh(item)
+    background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
+    return {"checked": item.checked}
+
+
+@router.post("/list/purchase", response_model=ShoppingSessionResponse)
+def purchase_checked(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household)
+):
+    checked_items = db.query(ShoppingListItem).filter(
+        ShoppingListItem.household_id == household.id,
+        ShoppingListItem.checked == True
+    ).all()
+
+    if not checked_items:
+        raise HTTPException(status_code=400, detail="No checked items")
+
+    now = datetime.utcnow()
+    session = ShoppingSession(household_id=household.id, completed_at=now)
+    db.add(session)
+    db.flush()
+
+    for list_item in checked_items:
+        session_item = SessionItem(
+            session_id=session.id,
+            item_id=list_item.item_id,
+            item_name=list_item.item.name,
+            quantity=list_item.quantity,
+            unit=list_item.unit,
+            checked=True,
+            checked_at=now,
+        )
+        db.add(session_item)
+
+    db.query(ShoppingListItem).filter(
+        ShoppingListItem.id.in_([i.id for i in checked_items]),
+        ShoppingListItem.household_id == household.id
+    ).delete(synchronize_session=False)
+
+    db.commit()
+    db.refresh(session)
+    background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
+    return session
 
 
 @router.get("/pool", response_model=list[PoolItemResponse])

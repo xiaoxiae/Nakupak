@@ -51,11 +51,13 @@ export const items = {
 export const shoppingList = {
   get: () => api.get('/api/list'),
   add: (items) => api.post('/api/list/add', { items }),
-  update: (id, quantity) => api.put(`/api/list/${id}`, { quantity }),
+  update: (id, data) => api.put(`/api/list/${id}`, data),
   remove: (id) => api.delete(`/api/list/${id}`),
   addRecipe: (recipeId) => api.post(`/api/list/add-recipe/${recipeId}`),
   bulkRemove: (ids) => api.post('/api/list/remove', { ids }),
   clear: () => api.delete('/api/list'),
+  toggleCheck: (id) => api.put(`/api/list/${id}/check`),
+  purchase: () => api.post('/api/list/purchase'),
 }
 
 export const pool = {
@@ -70,11 +72,6 @@ export const recipes = {
 }
 
 export const sessions = {
-  start: () => api.post('/api/session/start'),
-  getActive: () => api.get('/api/session/active'),
-  toggleCheck: (itemId) => api.put(`/api/session/check/${itemId}`),
-  complete: () => api.post('/api/session/complete'),
-  abort: () => api.delete('/api/session/active'),
   list: () => api.get('/api/sessions'),
   delete: (id) => api.delete(`/api/sessions/${id}`),
 }

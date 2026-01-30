@@ -5,7 +5,6 @@ import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
 import { recipes as recipesApi } from '../services/api'
 import { Pencil, Trash2, Plus } from 'lucide-vue-next'
-import { Motion } from 'motion-v'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
 import RecipeModal from '../components/RecipeModal.vue'
@@ -13,6 +12,7 @@ import ConfirmModal from '../components/ConfirmModal.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemBadge from '../components/ItemBadge.vue'
 import IconButton from '../components/IconButton.vue'
+import CollectionCard from '../components/CollectionCard.vue'
 
 const { t } = useI18n()
 const listStore = useListStore()
@@ -86,31 +86,31 @@ async function addRecipeToList(recipe) {
     <EmptyState v-if="listStore.recipes.length === 0" :title="t('recipes.emptyTitle')" :subtitle="t('recipes.emptySubtitle')" />
 
     <AnimatedList :items="listStore.recipes" v-slot="{ item: recipe }">
-      <div class="bg-surface-secondary border border-border rounded-xl p-4 mb-4">
-        <div class="flex items-center gap-3">
-          <div class="w-4 h-4 rounded-full" :style="{ background: recipe.color }"></div>
-          <h3 class="flex-1 text-base font-medium text-text truncate">{{ recipe.name }}</h3>
-          <div class="flex gap-1">
-            <IconButton @click="addRecipeToList(recipe)">
-              <Plus class="w-4 h-4" />
-            </IconButton>
-            <IconButton @click="startEdit(recipe)">
-              <Pencil class="w-4 h-4" />
-            </IconButton>
-            <IconButton @click="confirmDeleteRecipe(recipe)">
-              <Trash2 class="w-4 h-4" />
-            </IconButton>
+      <CollectionCard class="mb-4">
+        <template #header>
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 rounded-full" :style="{ background: recipe.color }"></div>
+            <h3 class="flex-1 text-base font-medium text-text truncate">{{ recipe.name }}</h3>
           </div>
-        </div>
-        <div class="flex flex-wrap gap-2 mt-3">
-          <ItemBadge
-            v-for="pi in recipe.recipe_items"
-            :key="pi.item_id"
-            :name="pi.item?.name"
-            :count="pi.quantity"
-          />
-        </div>
-      </div>
+        </template>
+        <template #actions>
+          <IconButton @click="addRecipeToList(recipe)">
+            <Plus class="w-5 h-5" />
+          </IconButton>
+          <IconButton @click="startEdit(recipe)">
+            <Pencil class="w-5 h-5" />
+          </IconButton>
+          <IconButton @click="confirmDeleteRecipe(recipe)">
+            <Trash2 class="w-5 h-5" />
+          </IconButton>
+        </template>
+        <ItemBadge
+          v-for="pi in recipe.recipe_items"
+          :key="pi.item_id"
+          :name="pi.item?.name"
+          :count="pi.quantity"
+        />
+      </CollectionCard>
     </AnimatedList>
 
     <RecipeModal

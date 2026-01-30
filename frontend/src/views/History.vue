@@ -3,13 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
-import { Check, X, Plus, Trash2 } from 'lucide-vue-next'
+import { Plus, Trash2 } from 'lucide-vue-next'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
 import ItemBadge from '../components/ItemBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import IconButton from '../components/IconButton.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import CollectionCard from '../components/CollectionCard.vue'
 
 const { t, locale } = useI18n()
 const listStore = useListStore()
@@ -45,14 +46,6 @@ function formatDate(dateString) {
   })
 }
 
-function getCheckedCount(session) {
-  return session.session_items?.filter(i => i.checked).length || 0
-}
-
-function getTotalCount(session) {
-  return session.session_items?.length || 0
-}
-
 async function ensureItemId(sessionItem) {
   if (sessionItem.item_id) return sessionItem.item_id
   const item = await listStore.createItem(sessionItem.item_name, null)
@@ -66,7 +59,7 @@ async function addSessionToList(session) {
   const itemsToAdd = []
   for (const i of session.session_items) {
     const itemId = await ensureItemId(i)
-    itemsToAdd.push({ item_id: itemId, quantity: i.quantity })
+    itemsToAdd.push({ item_id: itemId, quantity: i.quantity, unit: i.unit || 'x' })
   }
 
   await listStore.addItems(itemsToAdd)
@@ -92,7 +85,7 @@ async function handleDeleteConfirm() {
 
 async function addItemToList(sessionItem) {
   const itemId = await ensureItemId(sessionItem)
-  await listStore.addItem(itemId, sessionItem.quantity)
+  await listStore.addItem(itemId, sessionItem.quantity, sessionItem.unit || 'x')
 
   toastStore.show(t('history.addedToList'), {
     items: [{ name: getItemName(sessionItem), quantity: sessionItem.quantity }]
@@ -106,36 +99,28 @@ async function addItemToList(sessionItem) {
 
     <div v-else class="flex flex-col gap-3">
       <AnimatedList :items="listStore.sessions" v-slot="{ item: session }">
-        <div class="bg-surface-secondary border border-border rounded-xl p-4">
-          <div class="flex items-center justify-between mb-3">
+        <CollectionCard>
+          <template #header>
             <span class="font-medium text-text truncate">{{ formatDate(session.completed_at) }}</span>
-            <div class="flex items-center gap-2">
-              <IconButton @click="addSessionToList(session)">
-                <Plus class="w-5 h-5" />
-              </IconButton>
-              <IconButton @click="confirmDelete(session)">
-                <Trash2 class="w-5 h-5" />
-              </IconButton>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap gap-2">
-            <ItemBadge
-              v-for="item in session.session_items"
-              :key="item.id"
-              :name="getItemName(item)"
-              :count="item.quantity"
-              :checked="item.checked"
-              :clickable="!!item.item_id"
-              @click="addItemToList(item)"
-            >
-              <template #prefix>
-                <Check v-if="item.checked" class="w-4 h-4 text-success" />
-                <X v-else class="w-4 h-4 text-text-muted" />
-              </template>
-            </ItemBadge>
-          </div>
-        </div>
+          </template>
+          <template #actions>
+            <IconButton @click="addSessionToList(session)">
+              <Plus class="w-5 h-5" />
+            </IconButton>
+            <IconButton @click="confirmDelete(session)">
+              <Trash2 class="w-5 h-5" />
+            </IconButton>
+          </template>
+          <ItemBadge
+            v-for="item in session.session_items"
+            :key="item.id"
+            :name="getItemName(item)"
+            :count="item.quantity"
+            :unit="item.unit || 'x'"
+            :clickable="!!item.item_id"
+            @click="addItemToList(item)"
+          />
+        </CollectionCard>
       </AnimatedList>
     </div>
     <ConfirmModal

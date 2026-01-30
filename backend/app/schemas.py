@@ -72,22 +72,27 @@ class ItemResponse(ItemBase):
 
 class ShoppingListItemBase(BaseModel):
     item_id: int
-    quantity: int = 1
+    quantity: float = 1
+    unit: str = "x"
 
 
 class ShoppingListItemCreate(BaseModel):
     item_id: int
-    quantity: int = 1
+    quantity: float = 1
+    unit: str = "x"
 
 
 class ShoppingListItemUpdate(BaseModel):
-    quantity: int
+    quantity: float
+    unit: str | None = None
 
 
 class ShoppingListItemResponse(BaseModel):
     id: int
     item_id: int
-    quantity: int
+    quantity: float
+    unit: str = "x"
+    checked: bool = False
     added_at: datetime
     from_recipe_id: int | None
     item: ItemResponse
@@ -98,7 +103,8 @@ class ShoppingListItemResponse(BaseModel):
 
 class RecipeItemBase(BaseModel):
     item_id: int
-    quantity: int = 1
+    quantity: float = 1
+    unit: str = "x"
 
 
 class RecipeBase(BaseModel):
@@ -118,7 +124,8 @@ class RecipeUpdate(BaseModel):
 
 class RecipeItemResponse(BaseModel):
     item_id: int
-    quantity: int
+    quantity: float
+    unit: str = "x"
     item: ItemResponse
 
     class Config:
@@ -137,13 +144,12 @@ class RecipeResponse(RecipeBase):
 class SessionItemBase(BaseModel):
     item_id: int | None = None
     item_name: str
-    quantity: int = 1
-    checked: bool = False
+    quantity: float = 1
+    unit: str = "x"
 
 
 class SessionItemResponse(SessionItemBase):
     id: int
-    checked_at: datetime | None
     item: ItemResponse | None = None
 
     class Config:

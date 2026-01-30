@@ -6,15 +6,40 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from contextlib import asynccontextmanager
 
-from .database import engine, Base, SessionLocal
+from .database import engine, SessionLocal
 from .websocket import manager
 from .auth import get_household_from_jwt
 from .routers import auth, items, list, recipes, sessions
 
 
+def _run_alembic_migrations():
+    """Run Alembic migrations to head on startup."""
+    from alembic.config import Config
+    from alembic import command
+    from alembic.runtime.migration import MigrationContext
+    from sqlalchemy import inspect
+
+    alembic_cfg = Config(
+        str(Path(__file__).resolve().parent.parent / "alembic.ini")
+    )
+
+    # If the DB already has tables but no alembic_version table,
+    # stamp it so Alembic doesn't try to re-create existing tables.
+    with engine.connect() as conn:
+        ctx = MigrationContext.configure(conn)
+        current_rev = ctx.get_current_revision()
+        if current_rev is None:
+            insp = inspect(engine)
+            if insp.get_table_names():
+                command.stamp(alembic_cfg, "head")
+                return
+
+    command.upgrade(alembic_cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    _run_alembic_migrations()
     yield
 
 

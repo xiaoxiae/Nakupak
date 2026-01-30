@@ -1,4 +1,6 @@
 <script setup>
+import CheckBox from './CheckBox.vue'
+
 defineProps({
   name: {
     type: String,
@@ -16,9 +18,13 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  checked: {
+    type: Boolean,
+    default: null,
+  },
 })
 
-const emit = defineEmits(['click'])
+const emit = defineEmits(['click', 'toggleCheck'])
 </script>
 
 <template>
@@ -29,7 +35,8 @@ const emit = defineEmits(['click'])
     @click="clickable && emit('click')"
   >
     <slot name="prefix"></slot>
-    <div class="flex-1 min-w-0 flex items-center gap-2">
+    <CheckBox v-if="checked !== null" class="mr-2" :checked="checked" @toggle="emit('toggleCheck')" />
+    <div class="flex-1 min-w-0 flex items-center gap-2" :class="{ 'opacity-40': checked === true }">
       <span class="font-medium truncate text-text">{{ name }}</span>
       <span
         v-if="category"

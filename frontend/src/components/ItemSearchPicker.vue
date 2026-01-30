@@ -61,7 +61,7 @@ async function createAndEmit() {
 <template>
   <SearchBar v-model="search" :placeholder="placeholder" @enter="handleEnter" />
 
-  <AnimatePresence>
+  <AnimatePresence :initial="false">
     <Motion
       v-if="filteredItems.length > 0 || search"
       key="search-section"
@@ -76,47 +76,28 @@ async function createAndEmit() {
         <h3 v-else class="text-sm font-semibold text-text-secondary">{{ t('mainList.searchResults') }}</h3>
       </div>
 
-      <div class="flex flex-wrap gap-2">
-        <AnimatePresence>
-          <Motion
-            v-for="poolItem in filteredItems"
-            :key="poolItem.item.id"
-            :initial="{ opacity: 0, width: 0 }"
-            :animate="{ opacity: 1, width: 'auto' }"
-            :exit="{ opacity: 0, width: 0 }"
-            :transition="{ duration: 0.15, ease: 'easeOut' }"
-            class="overflow-hidden"
-          >
-            <ItemBadge
-              :name="poolItem.item.name"
-              :count="poolItem.frequency"
-              count-style="parentheses"
-              clickable
-              @click="handleSelect(poolItem.item)"
-            />
-          </Motion>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar">
+        <ItemBadge
+          v-for="poolItem in filteredItems"
+          :key="poolItem.item.id"
+          :name="poolItem.item.name"
+          :count="poolItem.frequency"
+          count-style="parentheses"
+          clickable
+          @click="handleSelect(poolItem.item)"
+        />
 
-          <Motion
-            v-if="search && !exactMatch"
-            key="add-new-item"
-            :initial="{ opacity: 0, width: 0 }"
-            :animate="{ opacity: 1, width: 'auto' }"
-            :exit="{ opacity: 0, width: 0 }"
-            :transition="{ duration: 0.15, ease: 'easeOut' }"
-            class="overflow-hidden"
-          >
-            <ItemBadge
-              :name="search"
-              clickable
-              selected
-              @click="createAndEmit"
-            >
-              <template #prefix>
-                <Plus class="w-4 h-4" />
-              </template>
-            </ItemBadge>
-          </Motion>
-        </AnimatePresence>
+        <ItemBadge
+          v-if="search && !exactMatch"
+          :name="search"
+          clickable
+          selected
+          @click="createAndEmit"
+        >
+          <template #prefix>
+            <Plus class="w-4 h-4" />
+          </template>
+        </ItemBadge>
       </div>
     </Motion>
   </AnimatePresence>

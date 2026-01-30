@@ -1,6 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Motion } from 'motion-v'
+import { formatQuantity } from '../utils/units'
+
+const { t } = useI18n()
 
 defineProps({
   name: {
@@ -15,6 +19,10 @@ defineProps({
     type: String,
     default: 'x',
     validator: (value) => ['parentheses', 'x'].includes(value),
+  },
+  unit: {
+    type: String,
+    default: null,
   },
   checked: {
     type: Boolean,
@@ -44,7 +52,7 @@ function handleClick() {
 <template>
   <Motion
     :as="clickable ? 'button' : 'span'"
-    class="inline-flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm font-medium"
+    class="inline-flex shrink-0 items-center gap-2 px-2 py-1.5 rounded-lg text-sm font-medium"
     :class="{
       'hover:opacity-80 cursor-pointer': clickable,
       'opacity-50': checked === false,
@@ -58,7 +66,7 @@ function handleClick() {
     <slot name="prefix" />
     <span>{{ name }}</span>
     <span v-if="count != null && count > 0" class="text-xs" :class="selected ? 'text-white/70' : 'text-text-muted'">
-      {{ countStyle === 'parentheses' ? `(${count})` : `x${count}` }}
+      {{ countStyle === 'parentheses' ? `(${count})` : (unit ? formatQuantity(count, t('units.' + unit)) : `x${count}`) }}
     </span>
   </Motion>
 </template>
