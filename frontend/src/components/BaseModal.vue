@@ -30,18 +30,20 @@ function close() {
         :animate="{ opacity: 1, scale: 1, y: 0 }"
         :exit="{ opacity: 0, scale: 0.95, y: 10 }"
         :transition="{ duration: 0.15, ease: 'easeOut' }"
-        class="bg-surface border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+        class="bg-surface border border-border rounded-xl w-full max-w-md max-h-[90vh] flex flex-col"
       >
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between p-6 pb-4 border-b border-border shrink-0">
           <h3 class="font-semibold text-text">{{ title }}</h3>
           <button @click="close" class="text-text-muted hover:text-text">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <slot />
+        <div class="overflow-y-auto px-6 py-4">
+          <slot />
+        </div>
 
-        <div class="flex gap-2 justify-end mt-6">
+        <div class="flex gap-2 justify-end px-6 py-4 border-t border-border shrink-0">
           <slot name="footer" />
         </div>
       </Motion>

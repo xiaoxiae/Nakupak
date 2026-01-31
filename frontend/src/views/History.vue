@@ -99,7 +99,7 @@ async function addItemToList(sessionItem) {
 
     <div v-else class="flex flex-col gap-3">
       <AnimatedList :items="listStore.sessions" v-slot="{ item: session }">
-        <CollectionCard>
+        <CollectionCard expanded>
           <template #header>
             <span class="font-medium text-text truncate">{{ formatDate(session.completed_at) }}</span>
           </template>

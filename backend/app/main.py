@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import os
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +11,8 @@ from contextlib import asynccontextmanager
 from .database import engine, SessionLocal
 from .websocket import manager
 from .auth import get_household_from_jwt
-from .routers import auth, items, list, recipes, sessions
+from .llm_worker_manager import llm_worker_manager
+from .routers import auth, items, list, recipes, sessions, import_recipe
 
 
 def _run_alembic_migrations():
@@ -42,6 +45,10 @@ def _run_alembic_migrations():
     command.upgrade(alembic_cfg, "head")
 
 
+_uploads_dir = Path(__file__).resolve().parent.parent.parent / "data" / "uploads"
+_uploads_dir.mkdir(parents=True, exist_ok=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _run_alembic_migrations()
@@ -63,6 +70,7 @@ app.include_router(items.router)
 app.include_router(list.router)
 app.include_router(recipes.router)
 app.include_router(sessions.router)
+app.include_router(import_recipe.router)
 
 
 @app.websocket("/api/ws")
@@ -90,10 +98,32 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
         manager.disconnect(websocket, household_id)
 
 
+WORKER_SECRET = os.environ.get("WORKER_SECRET", "dev-worker-secret")
+
+
+@app.websocket("/api/ws/llm-worker")
+async def llm_worker_endpoint(websocket: WebSocket, token: str = Query(None)):
+    if not WORKER_SECRET or token != WORKER_SECRET:
+        await websocket.close(code=1008)
+        return
+
+    await websocket.accept()
+    await llm_worker_manager.register(websocket)
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            llm_worker_manager.handle_message(raw)
+    except WebSocketDisconnect:
+        await llm_worker_manager.unregister(websocket)
+
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
 
+
+# Serve uploaded files
+app.mount("/api/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 
 # Serve frontend static files (production: built frontend is at ../frontend/dist)
 _frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"

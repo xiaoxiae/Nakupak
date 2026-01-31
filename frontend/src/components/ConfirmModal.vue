@@ -1,6 +1,7 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import BaseModal from './BaseModal.vue'
+import AppButton from './AppButton.vue'
 
 const { t } = useI18n()
 
@@ -40,21 +41,12 @@ function confirm() {
     <p class="text-text-secondary">{{ message }}</p>
 
     <template #footer>
-      <button
-        class="px-6 py-3 bg-surface-secondary text-text-secondary rounded-lg font-medium hover:opacity-80"
-        @click="close"
-      >
+      <AppButton variant="secondary" @click="close">
         {{ t('common.cancel') }}
-      </button>
-      <button
-        class="px-6 py-3 rounded-lg font-medium"
-        :class="confirmDanger
-          ? 'bg-danger text-white hover:opacity-90'
-          : 'bg-primary text-white hover:bg-primary-dark'"
-        @click="confirm"
-      >
+      </AppButton>
+      <AppButton :variant="confirmDanger ? 'danger' : 'primary'" @click="confirm">
         {{ confirmText }}
-      </button>
+      </AppButton>
     </template>
   </BaseModal>
 </template>

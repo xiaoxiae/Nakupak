@@ -12,6 +12,7 @@ import ItemCardList from '../components/ItemCardList.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemSearchPicker from '../components/ItemSearchPicker.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import AppButton from '../components/AppButton.vue'
 
 const { t } = useI18n()
 const listStore = useListStore()
@@ -164,12 +165,9 @@ function getRecipeColor(listItem) {
           :exit="{ opacity: 0, scale: 0.9 }"
           :transition="{ duration: 0.2 }"
         >
-          <button
-            class="px-4 py-3 bg-success text-white rounded-xl font-medium shadow-lg hover:opacity-90"
-            @click="handlePurchase"
-          >
+          <AppButton variant="success" fab @click="handlePurchase">
             {{ t('mainList.purchased') }}
-          </button>
+          </AppButton>
         </Motion>
       </AnimatePresence>
     </template>

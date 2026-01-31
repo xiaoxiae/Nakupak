@@ -14,6 +14,7 @@ import ConfirmModal from '../components/ConfirmModal.vue'
 import QrDisplayModal from '../components/QrDisplayModal.vue'
 import EmptyState from '../components/EmptyState.vue'
 import IconButton from '../components/IconButton.vue'
+import AppButton from '../components/AppButton.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -110,24 +111,18 @@ function logout() {
             <QrCode class="w-5 h-5" />
           </button>
         </div>
-        <button
-          class="w-full mt-4 py-3 bg-danger text-white rounded-lg font-medium hover:opacity-90"
-          @click="logout"
-        >
+        <AppButton variant="danger" block class="mt-4" @click="logout">
           {{ t('settings.signOut') }}
-        </button>
+        </AppButton>
       </div>
     </section>
 
     <section class="mb-8">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold text-text-secondary">{{ t('settings.categories') }}</h2>
-        <button
-          class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark"
-          @click="startCreateCategory"
-        >
+        <AppButton variant="primary" size="sm" @click="startCreateCategory">
           {{ t('settings.addCategory') }}
-        </button>
+        </AppButton>
       </div>
 
       <AnimatedList :items="listStore.categories" v-slot="{ item: category }">

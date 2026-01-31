@@ -1,5 +1,8 @@
+import uuid
+from pathlib import Path
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -9,6 +12,24 @@ from ..auth import get_current_household
 from ..utils import strip_emoji
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
+
+_uploads_dir = Path(__file__).resolve().parent.parent.parent.parent / "data" / "uploads"
+
+
+@router.post("/upload-image")
+async def upload_image(
+    file: UploadFile,
+    household: Household = Depends(get_current_household),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    ext = Path(file.filename or "img").suffix or ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest = _uploads_dir / filename
+    content = await file.read()
+    dest.write_bytes(content)
+    return {"image_url": f"/api/uploads/{filename}"}
 
 
 @router.get("", response_model=list[RecipeResponse])
@@ -28,7 +49,7 @@ def create_recipe(
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
-    db_recipe = Recipe(name=recipe.name, color=recipe.color, household_id=household.id)
+    db_recipe = Recipe(name=recipe.name, description=recipe.description, image_url=recipe.image_url, household_id=household.id)
     db.add(db_recipe)
     db.commit()
     db.refresh(db_recipe)
@@ -63,8 +84,10 @@ def update_recipe(
 
     if recipe.name is not None:
         db_recipe.name = recipe.name
-    if recipe.color is not None:
-        db_recipe.color = recipe.color
+    if recipe.description is not None:
+        db_recipe.description = recipe.description
+    if recipe.image_url is not None:
+        db_recipe.image_url = recipe.image_url or None
 
     if recipe.items is not None:
         db.query(RecipeItem).filter(RecipeItem.recipe_id == recipe_id).delete()

@@ -14,6 +14,7 @@ import RecipeModal from '../components/RecipeModal.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import ItemModal from '../components/ItemModal.vue'
 import BaseModal from '../components/BaseModal.vue'
+import AppButton from '../components/AppButton.vue'
 import EmptyState from '../components/EmptyState.vue'
 import SearchBar from '../components/SearchBar.vue'
 import IconButton from '../components/IconButton.vue'
@@ -364,18 +365,12 @@ const mergeTargetName = computed(() => {
         </select>
 
         <template #footer>
-          <button
-            class="px-6 py-3 bg-surface-secondary text-text-secondary rounded-lg font-medium hover:opacity-80"
-            @click="showCategoryModal = false"
-          >
+          <AppButton variant="secondary" @click="showCategoryModal = false">
             {{ t('common.cancel') }}
-          </button>
-          <button
-            class="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark"
-            @click="applyBulkCategory"
-          >
+          </AppButton>
+          <AppButton @click="applyBulkCategory">
             {{ t('items.apply') }}
-          </button>
+          </AppButton>
         </template>
       </BaseModal>
 

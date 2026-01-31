@@ -3,7 +3,10 @@ import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { getUnit } from '../utils/units'
+import { recipes as recipesApi } from '../services/api'
+import { X } from 'lucide-vue-next'
 import BaseModal from './BaseModal.vue'
+import AppButton from './AppButton.vue'
 import ItemCardList from './ItemCardList.vue'
 import ItemSearchPicker from './ItemSearchPicker.vue'
 
@@ -13,19 +16,21 @@ const props = defineProps({
   show: Boolean,
   editRecipe: Object,
   preselectedItemIds: Array,
+  prefilledName: String,
+  prefilledDescription: String,
+  prefilledImageUrl: String,
 })
 
 const emit = defineEmits(['close', 'save'])
 
 const listStore = useListStore()
 
-function randomColor() {
-  return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')
-}
-
 const recipeName = ref('')
-const recipeColor = ref(randomColor())
+const recipeDescription = ref('')
+const recipeImageUrl = ref('')
 const selectedItems = ref([])
+const uploading = ref(false)
+const fileInput = ref(null)
 
 const title = computed(() => props.editRecipe ? t('common.editRecipe') : t('common.newRecipe'))
 const buttonText = computed(() => props.editRecipe ? t('common.save') : t('common.create'))
@@ -34,23 +39,48 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     if (props.editRecipe) {
       recipeName.value = props.editRecipe.name
-      recipeColor.value = props.editRecipe.color
+      recipeDescription.value = props.editRecipe.description || ''
+      recipeImageUrl.value = props.editRecipe.image_url || ''
       selectedItems.value = props.editRecipe.recipe_items.map(pi => ({
         item_id: pi.item_id,
         quantity: pi.quantity,
         unit: pi.unit || 'x',
       }))
     } else if (props.preselectedItemIds?.length) {
-      recipeName.value = ''
-      recipeColor.value = randomColor()
-      selectedItems.value = props.preselectedItemIds.map(id => ({ item_id: id, quantity: 1, unit: 'x' }))
+      recipeName.value = props.prefilledName || ''
+      recipeDescription.value = props.prefilledDescription || ''
+      recipeImageUrl.value = props.prefilledImageUrl || ''
+      selectedItems.value = props.preselectedItemIds.map(entry =>
+        typeof entry === 'object' ? { item_id: entry.item_id, quantity: entry.quantity || 1, unit: entry.unit || 'x' }
+          : { item_id: entry, quantity: 1, unit: 'x' }
+      )
     } else {
       recipeName.value = ''
-      recipeColor.value = randomColor()
+      recipeDescription.value = ''
+      recipeImageUrl.value = ''
       selectedItems.value = []
     }
   }
 })
+
+async function handleFileSelect(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  uploading.value = true
+  try {
+    const { data } = await recipesApi.uploadImage(file)
+    recipeImageUrl.value = data.image_url
+  } catch {
+    // ignore upload errors
+  } finally {
+    uploading.value = false
+  }
+}
+
+function clearImage() {
+  recipeImageUrl.value = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
 
 function addItem(item) {
   if (!selectedItems.value.some(i => i.item_id === item.id)) {
@@ -100,7 +130,8 @@ function save() {
   emit('save', {
     id: props.editRecipe?.id,
     name: recipeName.value,
-    color: recipeColor.value,
+    description: recipeDescription.value || null,
+    image_url: recipeImageUrl.value || null,
     items: selectedItems.value,
   })
 }
@@ -114,19 +145,46 @@ function close() {
   <BaseModal :show="show" :title="title" @close="close">
     <div class="mb-4">
       <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.name') }}</label>
-      <div class="flex gap-2 items-center">
-        <input
-          v-model="recipeName"
-          type="text"
-          :placeholder="t('common.recipeNamePlaceholder')"
-          class="flex-1 px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
+      <input
+        v-model="recipeName"
+        type="text"
+        :placeholder="t('common.recipeNamePlaceholder')"
+        class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
+      />
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.image') }}</label>
+      <div v-if="recipeImageUrl" class="relative mb-2">
+        <img
+          :src="recipeImageUrl"
+          class="w-full aspect-video object-cover rounded-lg"
         />
-        <input
-          v-model="recipeColor"
-          type="color"
-          class="w-9 h-9 rounded-full border border-border p-0 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0"
-        />
+        <button
+          class="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
+          @click="clearImage"
+        >
+          <X class="w-4 h-4" />
+        </button>
       </div>
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        class="w-full text-sm text-text-secondary file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface-secondary file:text-text hover:file:opacity-80"
+        :disabled="uploading"
+        @change="handleFileSelect"
+      />
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.description') }}</label>
+      <textarea
+        v-model="recipeDescription"
+        :placeholder="t('common.descriptionPlaceholder')"
+        rows="3"
+        class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary resize-y text-sm"
+      />
     </div>
 
     <div class="mb-4">
@@ -155,19 +213,12 @@ function close() {
     </div>
 
     <template #footer>
-      <button
-        class="px-6 py-3 bg-surface-secondary text-text-secondary rounded-lg font-medium hover:opacity-80"
-        @click="close"
-      >
+      <AppButton variant="secondary" @click="close">
         {{ t('common.cancel') }}
-      </button>
-      <button
-        class="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-        @click="save"
-        :disabled="!recipeName"
-      >
+      </AppButton>
+      <AppButton @click="save" :disabled="!recipeName">
         {{ buttonText }}
-      </button>
+      </AppButton>
     </template>
   </BaseModal>
 </template>

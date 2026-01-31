@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from './BaseModal.vue'
+import AppButton from './AppButton.vue'
 
 const { t } = useI18n()
 
@@ -67,19 +68,12 @@ function save() {
     </div>
 
     <template #footer>
-      <button
-        class="px-6 py-3 bg-surface-secondary text-text-secondary rounded-lg font-medium hover:opacity-80"
-        @click="close"
-      >
+      <AppButton variant="secondary" @click="close">
         {{ t('common.cancel') }}
-      </button>
-      <button
-        class="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-        @click="save"
-        :disabled="!categoryName.trim()"
-      >
+      </AppButton>
+      <AppButton @click="save" :disabled="!categoryName.trim()">
         {{ buttonText }}
-      </button>
+      </AppButton>
     </template>
   </BaseModal>
 </template>

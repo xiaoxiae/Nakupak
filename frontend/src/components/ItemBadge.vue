@@ -6,7 +6,7 @@ import { formatQuantity } from '../utils/units'
 
 const { t } = useI18n()
 
-defineProps({
+const props = defineProps({
   name: {
     type: String,
     required: true,
@@ -42,10 +42,13 @@ const emit = defineEmits(['click'])
 
 const isPressed = ref(false)
 
-function handleClick() {
-  isPressed.value = true
-  emit('click')
-  setTimeout(() => isPressed.value = false, 150)
+function handleClick(e) {
+  if (props.clickable) {
+    e.stopPropagation()
+    isPressed.value = true
+    emit('click')
+    setTimeout(() => isPressed.value = false, 150)
+  }
 }
 </script>
 

@@ -6,6 +6,7 @@ import { QrCode } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSyncStore } from '../stores/sync'
 import QrScanModal from '../components/QrScanModal.vue'
+import AppButton from '../components/AppButton.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -100,13 +101,9 @@ async function joinList() {
       <p class="text-text-muted mb-8">{{ t('login.tagline') }}</p>
 
       <div class="flex flex-col gap-4">
-        <button
-          class="w-full px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed"
-          :disabled="loading"
-          @click="createList"
-        >
+        <AppButton variant="primary" block :disabled="loading" @click="createList">
           {{ loading ? t('login.loading') : t('login.create') }}
-        </button>
+        </AppButton>
 
         <div class="flex items-center gap-3 text-text-muted text-sm">
           <div class="flex-1 border-t border-border"></div>

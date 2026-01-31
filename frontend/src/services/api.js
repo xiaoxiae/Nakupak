@@ -69,6 +69,14 @@ export const recipes = {
   create: (data) => api.post('/api/recipes', data),
   update: (id, data) => api.put(`/api/recipes/${id}`, data),
   delete: (id) => api.delete(`/api/recipes/${id}`),
+  import: (data) => api.post('/api/recipes/import', data),
+  uploadImage: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/recipes/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export const sessions = {

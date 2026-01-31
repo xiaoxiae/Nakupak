@@ -1,8 +1,12 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+
 defineProps({
   category: Object,
   count: Number,
 })
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -12,7 +16,7 @@ defineProps({
         class="text-sm font-semibold uppercase tracking-wide"
         :style="category ? { color: category.color } : { color: 'var(--text-muted)' }"
       >
-        {{ category?.name || 'Uncategorized' }}
+        {{ category?.name || t('common.uncategorized') }}
       </h3>
       <span v-if="count != null" class="text-xs text-text-muted">({{ count }})</span>
     </div>

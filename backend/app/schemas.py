@@ -109,7 +109,8 @@ class RecipeItemBase(BaseModel):
 
 class RecipeBase(BaseModel):
     name: str
-    color: str = "#3b82f6"
+    description: str | None = None
+    image_url: str | None = None
 
 
 class RecipeCreate(RecipeBase):
@@ -118,7 +119,8 @@ class RecipeCreate(RecipeBase):
 
 class RecipeUpdate(BaseModel):
     name: str | None = None
-    color: str | None = None
+    description: str | None = None
+    image_url: str | None = None
     items: list[RecipeItemBase] | None = None
 
 
