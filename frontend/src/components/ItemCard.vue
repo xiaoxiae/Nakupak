@@ -53,7 +53,7 @@ function stopEditing(save) {
   if (!editing.value) return
   editing.value = false
   if (save) {
-    const parsed = parseFloat(editValue.value)
+    const parsed = parseFloat(editValue.value.replace(/[^\d.]/g, ''))
     const unitChanged = editUnit.value !== props.unit
     const qtyChanged = !isNaN(parsed) && parsed !== props.quantity
     if (unitChanged) {
@@ -72,6 +72,24 @@ function stopEditing(save) {
 function selectUnit(unitValue) {
   editUnit.value = unitValue
   editValue.value = String(getUnit(unitValue).defaultQty)
+}
+
+function handleInput() {
+  const unitNames = new Map()
+  for (const u of UNITS) {
+    unitNames.set(u.value.toLowerCase(), u.value)
+    const localized = t('units.' + u.value).toLowerCase()
+    if (localized !== u.value.toLowerCase()) {
+      unitNames.set(localized, u.value)
+    }
+  }
+  const suffixes = [...unitNames.keys()].sort((a, b) => b.length - a.length).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const re = new RegExp(`^(\\d+\\.?\\d*)\\s*(${suffixes.join('|')})$`, 'i')
+  const m = editValue.value.match(re)
+  if (m) {
+    editValue.value = m[1]
+    editUnit.value = unitNames.get(m[2].toLowerCase())
+  }
 }
 
 function handleClickOutside(e) {
@@ -96,7 +114,7 @@ onBeforeUnmount(() => {
     :transition="{ duration: 0.06, ease: 'easeOut' }"
     style="transform-origin: center"
   >
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2" :class="editing ? 'relative z-50' : ''">
       <ItemRow
         :name="item.name"
         :category="item.category"
@@ -117,8 +135,10 @@ onBeforeUnmount(() => {
                 <input
                   ref="quantityInputRef"
                   v-model="editValue"
-                  type="number"
-                  class="w-16 text-center font-semibold text-lg text-text bg-transparent border-b border-primary outline-none px-1 py-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  type="text"
+                  inputmode="decimal"
+                  class="w-16 text-center font-semibold text-lg text-text bg-transparent border-b border-primary outline-none px-1 py-0"
+                  @input="handleInput"
                   @keydown.enter="stopEditing(true)"
                   @keydown.escape="stopEditing(false)"
                 />
