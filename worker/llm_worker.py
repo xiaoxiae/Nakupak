@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+
 import httpx
 import websockets
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 SERVER_WS_URL = os.environ.get("SERVER_WS_URL", "ws://localhost:8000/api/ws/llm-worker")
 WORKER_SECRET = os.environ.get("WORKER_SECRET", "dev-worker-secret")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2.5:7b")
+LLM_MODEL = os.environ.get("LLM_MODEL", "qwen3:8b")
 
 RECONNECT_DELAY = 5
 
@@ -90,11 +91,13 @@ def postprocess_recipe(data: dict) -> dict:
         unit = str(ing.get("unit", "x")).strip()
         if unit not in VALID_UNITS:
             unit = "x"
-        ingredients.append({
-            "name": str(ing["name"]),
-            "quantity": qty,
-            "unit": unit,
-        })
+        ingredients.append(
+            {
+                "name": str(ing["name"]),
+                "quantity": qty,
+                "unit": unit,
+            }
+        )
 
     return {
         "name": data.get("name", "Imported Recipe"),
@@ -133,10 +136,14 @@ async def handle_request(msg: dict) -> dict:
 
     if action == "generate":
         prompt = msg.get("prompt", "")
-        logger.info("Processing generate request %s (%d chars)", request_id, len(prompt))
+        logger.info(
+            "Processing generate request %s (%d chars)", request_id, len(prompt)
+        )
         try:
             result = await ollama_generate(prompt)
-            logger.info("Completed request %s (%d chars response)", request_id, len(result))
+            logger.info(
+                "Completed request %s (%d chars response)", request_id, len(result)
+            )
             return {"request_id": request_id, "result": result}
         except Exception as e:
             logger.error("Ollama error for request %s: %s", request_id, e)
@@ -144,7 +151,9 @@ async def handle_request(msg: dict) -> dict:
 
     if action == "extract_recipe":
         text = msg.get("text", "")
-        logger.info("Processing extract_recipe request %s (%d chars)", request_id, len(text))
+        logger.info(
+            "Processing extract_recipe request %s (%d chars)", request_id, len(text)
+        )
         try:
             result = await handle_extract_recipe(text)
             logger.info("Completed extract_recipe request %s", request_id)
