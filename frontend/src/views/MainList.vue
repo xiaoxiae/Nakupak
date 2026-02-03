@@ -111,7 +111,7 @@ function getRecipeColor(listItem) {
         </button>
       </Motion>
       </AnimatePresence>
-      <AnimatedCategoryList :groups="listStore.groupedByCategory" v-slot="{ group }">
+      <AnimatedCategoryList :groups="listStore.uncheckedGroupedByCategory" v-slot="{ group }">
             <ItemCardList
               :items="group.items.map(li => ({
                 id: li.id,
@@ -130,6 +130,46 @@ function getRecipeColor(listItem) {
               @toggle-check="(entry) => listStore.toggleCheck(entry._raw.id)"
             />
       </AnimatedCategoryList>
+
+      <AnimatePresence :initial="false">
+        <Motion
+          v-if="listStore.checkedItems.length > 0"
+          key="purchased-section"
+          :initial="{ opacity: 0, height: 0 }"
+          :animate="{ opacity: 1, height: 'auto' }"
+          :exit="{ opacity: 0, height: 0 }"
+          :transition="{ duration: 0.25, ease: 'easeOut' }"
+          class="overflow-hidden"
+        >
+          <div class="mt-4">
+            <div class="flex items-center gap-2 mb-3 pl-1">
+              <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">
+                {{ t('mainList.purchased') }}
+              </h3>
+              <span class="text-xs text-text-muted">({{ listStore.checkedItems.length }})</span>
+            </div>
+            <div class="opacity-60">
+              <ItemCardList
+                :items="listStore.checkedItems.map(li => ({
+                  id: li.id,
+                  item: li.item,
+                  quantity: li.quantity,
+                  unit: li.unit || 'x',
+                  recipeColor: getRecipeColor(li),
+                  checked: true,
+                  _raw: li,
+                }))"
+                @increment="(entry) => handleIncrement(entry._raw)"
+                @decrement="(entry) => handleDecrement(entry._raw)"
+                @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
+                @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
+                @remove="(entry) => listStore.removeItem(entry._raw.id)"
+                @toggle-check="(entry) => listStore.toggleCheck(entry._raw.id)"
+              />
+            </div>
+          </div>
+        </Motion>
+      </AnimatePresence>
       <AnimatePresence :initial="false">
       <Motion
         v-if="listStore.listItems.length === 0"

@@ -78,16 +78,6 @@ async function createAndEmit() {
 
       <div class="flex gap-2 overflow-x-auto no-scrollbar">
         <ItemBadge
-          v-for="poolItem in filteredItems"
-          :key="poolItem.item.id"
-          :name="poolItem.item.name"
-          :count="poolItem.frequency"
-          count-style="parentheses"
-          clickable
-          @click="handleSelect(poolItem.item)"
-        />
-
-        <ItemBadge
           v-if="search && !exactMatch"
           :name="search"
           clickable
@@ -98,6 +88,16 @@ async function createAndEmit() {
             <Plus class="w-4 h-4" />
           </template>
         </ItemBadge>
+
+        <ItemBadge
+          v-for="poolItem in filteredItems"
+          :key="poolItem.item.id"
+          :name="poolItem.item.name"
+          :count="poolItem.frequency"
+          count-style="parentheses"
+          clickable
+          @click="handleSelect(poolItem.item)"
+        />
       </div>
     </Motion>
   </AnimatePresence>

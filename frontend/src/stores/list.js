@@ -11,11 +11,12 @@ export const useListStore = defineStore('list', () => {
   const poolItems = ref([])
   const sessions = ref([])
 
-  const groupedByCategory = computed(() => {
+  const uncheckedGroupedByCategory = computed(() => {
     const grouped = {}
     const uncategorized = []
 
     for (const listItem of listItems.value) {
+      if (listItem.checked) continue
       const categoryId = listItem.item?.category_id
       if (categoryId) {
         if (!grouped[categoryId]) {
@@ -35,12 +36,26 @@ export const useListStore = defineStore('list', () => {
       nameCompare(a.category?.name || '', b.category?.name || '')
     )
 
+    for (const group of sorted) {
+      group.items.sort((a, b) => nameCompare(a.item?.name || '', b.item?.name || ''))
+    }
+
     if (uncategorized.length > 0) {
+      uncategorized.sort((a, b) => nameCompare(a.item?.name || '', b.item?.name || ''))
       sorted.push({ category: null, items: uncategorized })
     }
 
     return sorted
   })
+
+  const checkedItems = computed(() => {
+    return listItems.value
+      .filter(li => li.checked)
+      .sort((a, b) => nameCompare(a.item?.name || '', b.item?.name || ''))
+  })
+
+  // Keep groupedByCategory as alias for backwards compatibility with other views
+  const groupedByCategory = uncheckedGroupedByCategory
 
   const itemsGroupedByCategory = computed(() => {
     const grouped = {}
@@ -260,6 +275,8 @@ export const useListStore = defineStore('list', () => {
     poolItems,
     sessions,
     groupedByCategory,
+    uncheckedGroupedByCategory,
+    checkedItems,
     itemsGroupedByCategory,
     fetchList,
     fetchItems,
