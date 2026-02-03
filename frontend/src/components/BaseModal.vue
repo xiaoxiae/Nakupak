@@ -15,6 +15,7 @@ function close() {
 </script>
 
 <template>
+  <Teleport to="body">
   <AnimatePresence>
     <Motion
       v-if="show"
@@ -49,4 +50,5 @@ function close() {
       </Motion>
     </Motion>
   </AnimatePresence>
+  </Teleport>
 </template>

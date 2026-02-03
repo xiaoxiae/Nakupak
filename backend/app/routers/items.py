@@ -10,7 +10,7 @@ from ..schemas import (
     BulkIdsRequest, BulkSetCategoryRequest
 )
 from ..auth import get_current_household
-from ..utils import strip_emoji
+from ..utils import sort_key
 
 router = APIRouter(prefix="/api", tags=["items"])
 
@@ -22,7 +22,7 @@ def list_categories(
 ):
     return sorted(
         db.query(Category).filter(Category.household_id == household.id).all(),
-        key=lambda c: strip_emoji(c.name)
+        key=lambda c: sort_key(c.name)
     )
 
 
@@ -87,7 +87,7 @@ def list_items(
 ):
     return sorted(
         db.query(Item).filter(Item.household_id == household.id).all(),
-        key=lambda i: strip_emoji(i.name)
+        key=lambda i: sort_key(i.name)
     )
 
 

@@ -1,71 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
-import { useListStore } from '../stores/list'
-import { categories as categoriesApi } from '../services/api'
-import { Pencil, Trash2, Eye, EyeOff, Copy, QrCode } from 'lucide-vue-next'
+import { Eye, EyeOff, Copy, QrCode } from 'lucide-vue-next'
 import { useToastStore } from '../stores/toast'
 import PageLayout from '../components/PageLayout.vue'
-import AnimatedList from '../components/AnimatedList.vue'
-import CategoryModal from '../components/CategoryModal.vue'
-import ConfirmModal from '../components/ConfirmModal.vue'
 import QrDisplayModal from '../components/QrDisplayModal.vue'
-import EmptyState from '../components/EmptyState.vue'
-import IconButton from '../components/IconButton.vue'
 import AppButton from '../components/AppButton.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
-const listStore = useListStore()
-
-const showCategoryModal = ref(false)
-const editingCategory = ref(null)
-
-const showDeleteConfirm = ref(false)
-const deleteTarget = ref(null)
 
 const toastStore = useToastStore()
 const showToken = ref(false)
 const showQrModal = ref(false)
-
-onMounted(async () => {
-  await listStore.fetchCategories()
-})
-
-function startCreateCategory() {
-  editingCategory.value = null
-  showCategoryModal.value = true
-}
-
-function startEditCategory(category) {
-  editingCategory.value = category
-  showCategoryModal.value = true
-}
-
-async function handleCategorySave(data) {
-  if (editingCategory.value) {
-    await categoriesApi.update(editingCategory.value.id, data)
-  } else {
-    await categoriesApi.create(data)
-  }
-  await listStore.fetchCategories()
-  showCategoryModal.value = false
-}
-
-function confirmDeleteCategory(category) {
-  deleteTarget.value = category
-  showDeleteConfirm.value = true
-}
-
-async function handleDeleteConfirm() {
-  await categoriesApi.delete(deleteTarget.value.id)
-  await listStore.fetchCategories()
-  showDeleteConfirm.value = false
-  deleteTarget.value = null
-}
 
 async function copyToken() {
   if (authStore.household?.token) {
@@ -117,50 +67,9 @@ function logout() {
       </div>
     </section>
 
-    <section class="mb-8">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold text-text-secondary">{{ t('settings.categories') }}</h2>
-        <AppButton variant="primary" size="sm" @click="startCreateCategory">
-          {{ t('settings.addCategory') }}
-        </AppButton>
-      </div>
-
-      <AnimatedList :items="listStore.categories" v-slot="{ item: category }">
-        <div class="flex items-center gap-3 px-4 py-3 bg-surface-secondary border border-border rounded-xl mb-3">
-          <div class="w-4 h-4 rounded-full" :style="{ background: category.color }"></div>
-          <span class="flex-1 font-medium text-text">{{ category.name }}</span>
-          <IconButton @click="startEditCategory(category)">
-            <Pencil class="w-4 h-4" />
-          </IconButton>
-          <IconButton @click="confirmDeleteCategory(category)">
-            <Trash2 class="w-4 h-4" />
-          </IconButton>
-        </div>
-      </AnimatedList>
-
-      <EmptyState v-if="listStore.categories.length === 0" :title="t('settings.emptyCategoriesTitle')" :subtitle="t('settings.emptyCategoriesSubtitle')" />
-    </section>
-
-    <CategoryModal
-      :show="showCategoryModal"
-      :category="editingCategory"
-      @close="showCategoryModal = false"
-      @save="handleCategorySave"
-    />
-
     <QrDisplayModal
       :show="showQrModal"
       @close="showQrModal = false"
-    />
-
-    <ConfirmModal
-      :show="showDeleteConfirm"
-      :title="t('settings.deleteCategory')"
-      :message="t('settings.deleteCategoryMessage', { name: deleteTarget?.name })"
-      :confirm-text="t('common.delete')"
-      :confirm-danger="true"
-      @close="showDeleteConfirm = false"
-      @confirm="handleDeleteConfirm"
     />
   </PageLayout>
 </template>

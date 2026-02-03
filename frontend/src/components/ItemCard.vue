@@ -112,9 +112,9 @@ onBeforeUnmount(() => {
   <Motion
     :animate="{ scale: quantityScale }"
     :transition="{ duration: 0.06, ease: 'easeOut' }"
-    style="transform-origin: center"
+    :style="{ transformOrigin: 'center', position: 'relative', zIndex: editing ? 50 : 'auto' }"
   >
-    <div class="flex items-center gap-2" :class="editing ? 'relative z-50' : ''">
+    <div class="flex items-center gap-2">
       <ItemRow
         :name="item.name"
         :category="item.category"

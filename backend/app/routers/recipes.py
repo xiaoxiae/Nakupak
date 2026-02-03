@@ -9,7 +9,7 @@ from ..database import get_db
 from ..models import Household, Recipe, RecipeItem
 from ..schemas import RecipeCreate, RecipeUpdate, RecipeResponse, RecipeItemBase
 from ..auth import get_current_household
-from ..utils import strip_emoji
+from ..utils import sort_key
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
@@ -39,7 +39,7 @@ def list_recipes(
 ):
     return sorted(
         db.query(Recipe).filter(Recipe.household_id == household.id).all(),
-        key=lambda p: strip_emoji(p.name)
+        key=lambda p: sort_key(p.name)
     )
 
 

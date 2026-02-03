@@ -37,10 +37,10 @@ const exactMatch = computed(() => {
 })
 
 async function handleEnter() {
-  if (filteredItems.value.length > 0) {
-    handleSelect(filteredItems.value[0].item)
-  } else if (search.value.trim()) {
+  if (search.value.trim() && !exactMatch.value) {
     await createAndEmit()
+  } else if (filteredItems.value.length > 0) {
+    handleSelect(filteredItems.value[0].item)
   }
 }
 

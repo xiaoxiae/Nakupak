@@ -3,5 +3,5 @@ export function stripEmoji(str) {
 }
 
 export function nameCompare(a, b) {
-  return stripEmoji(a).localeCompare(stripEmoji(b))
+  return stripEmoji(a).localeCompare(stripEmoji(b), undefined, { sensitivity: 'base' })
 }

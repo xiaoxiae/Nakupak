@@ -82,7 +82,12 @@ const filteredGroupedItems = computed(() => {
     nameCompare(a.category?.name || '', b.category?.name || '')
   )
 
+  for (const group of sorted) {
+    group.items.sort((a, b) => nameCompare(a.name || '', b.name || ''))
+  }
+
   if (uncategorized.length > 0) {
+    uncategorized.sort((a, b) => nameCompare(a.name || '', b.name || ''))
     sorted.push({ category: null, items: uncategorized })
   }
 
