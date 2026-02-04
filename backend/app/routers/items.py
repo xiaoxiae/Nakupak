@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -11,6 +11,7 @@ from ..schemas import (
 )
 from ..auth import get_current_household
 from ..utils import sort_key
+from ..websocket import broadcast_update
 
 router = APIRouter(prefix="/api", tags=["items"])
 
@@ -29,6 +30,7 @@ def list_categories(
 @router.post("/categories", response_model=CategoryResponse)
 def create_category(
     category: CategoryCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -36,6 +38,7 @@ def create_category(
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
+    background_tasks.add_task(broadcast_update, household.id, "categories_updated", {})
     return db_category
 
 
@@ -43,6 +46,7 @@ def create_category(
 def update_category(
     category_id: int,
     category: CategoryUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -59,12 +63,14 @@ def update_category(
 
     db.commit()
     db.refresh(db_category)
+    background_tasks.add_task(broadcast_update, household.id, "categories_updated", {})
     return db_category
 
 
 @router.delete("/categories/{category_id}")
 def delete_category(
     category_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -77,6 +83,7 @@ def delete_category(
 
     db.delete(db_category)
     db.commit()
+    background_tasks.add_task(broadcast_update, household.id, "categories_updated", {})
     return {"ok": True}
 
 
@@ -94,6 +101,7 @@ def list_items(
 @router.post("/items", response_model=ItemResponse)
 def create_item(
     item: ItemCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -101,6 +109,7 @@ def create_item(
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
     return db_item
 
 
@@ -108,6 +117,7 @@ def create_item(
 def update_item(
     item_id: int,
     item: ItemUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -124,12 +134,14 @@ def update_item(
 
     db.commit()
     db.refresh(db_item)
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
     return db_item
 
 
 @router.delete("/items/{item_id}")
 def delete_item(
     item_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -142,12 +154,15 @@ def delete_item(
 
     db.delete(db_item)
     db.commit()
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
+    background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
     return {"ok": True}
 
 
 @router.post("/items/set-category")
 def bulk_set_category(
     request: BulkSetCategoryRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -164,20 +179,29 @@ def bulk_set_category(
         Item.household_id == household.id
     ).update({"category_id": request.category_id}, synchronize_session=False)
     db.commit()
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
     return {"ok": True, "updated": updated}
 
 
 @router.post("/items/delete")
 def bulk_delete_items(
     request: BulkIdsRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
+    # Delete associated shopping list items and recipe items first to avoid orphans
+    db.query(ShoppingListItem).filter(ShoppingListItem.item_id.in_(request.ids)).delete(synchronize_session=False)
+    db.query(RecipeItem).filter(RecipeItem.item_id.in_(request.ids)).delete(synchronize_session=False)
+    db.query(SessionItem).filter(SessionItem.item_id.in_(request.ids)).delete(synchronize_session=False)
+
     deleted = db.query(Item).filter(
         Item.id.in_(request.ids),
         Item.household_id == household.id
     ).delete(synchronize_session=False)
     db.commit()
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
+    background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
     return {"ok": True, "deleted": deleted}
 
 
@@ -185,6 +209,7 @@ def bulk_delete_items(
 def merge_items(
     target_id: int,
     request: MergeItemsRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -213,4 +238,6 @@ def merge_items(
 
     db.commit()
     db.refresh(target_item)
+    background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
+    background_tasks.add_task(broadcast_update, household.id, "list_updated", {})
     return target_item

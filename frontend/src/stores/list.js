@@ -221,6 +221,7 @@ export const useListStore = defineStore('list', () => {
   async function deleteItem(id) {
     await itemsApi.delete(id)
     items.value = items.value.filter(i => i.id !== id)
+    listItems.value = listItems.value.filter(li => li.item_id !== id)
   }
 
   async function updateItem(id, data) {
@@ -228,6 +229,12 @@ export const useListStore = defineStore('list', () => {
     const index = items.value.findIndex(i => i.id === id)
     if (index >= 0) {
       items.value[index] = response.data
+    }
+    // Update nested item data in listItems
+    for (const li of listItems.value) {
+      if (li.item_id === id) {
+        li.item = response.data
+      }
     }
     return response.data
   }
@@ -245,14 +252,22 @@ export const useListStore = defineStore('list', () => {
   async function bulkDeleteItems(ids) {
     await itemsApi.bulkDelete(ids)
     items.value = items.value.filter(i => !ids.includes(i.id))
+    listItems.value = listItems.value.filter(li => !ids.includes(li.item_id))
   }
 
   async function bulkSetCategory(ids, categoryId) {
     await itemsApi.bulkSetCategory(ids, categoryId)
+    const category = categoryId ? categories.value.find(c => c.id === categoryId) : null
     for (const item of items.value) {
       if (ids.includes(item.id)) {
         item.category_id = categoryId
-        item.category = categoryId ? categories.value.find(c => c.id === categoryId) : null
+        item.category = category
+      }
+    }
+    // Update nested item data in listItems
+    for (const li of listItems.value) {
+      if (ids.includes(li.item_id)) {
+        li.item = { ...li.item, category_id: categoryId, category }
       }
     }
   }
@@ -263,6 +278,13 @@ export const useListStore = defineStore('list', () => {
     const index = items.value.findIndex(i => i.id === targetId)
     if (index >= 0) {
       items.value[index] = response.data
+    }
+    // Update listItems — entries referencing source items now reference the target
+    for (const li of listItems.value) {
+      if (sourceIds.includes(li.item_id)) {
+        li.item_id = targetId
+        li.item = response.data
+      }
     }
     return response.data
   }

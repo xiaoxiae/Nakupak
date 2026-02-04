@@ -52,6 +52,14 @@ export const useSyncStore = defineStore('sync', () => {
       case 'list_updated':
         listStore.fetchList()
         break
+      case 'items_updated':
+        listStore.fetchItems()
+        listStore.fetchList()
+        break
+      case 'categories_updated':
+        listStore.fetchCategories()
+        listStore.fetchList()
+        break
     }
   }
 
