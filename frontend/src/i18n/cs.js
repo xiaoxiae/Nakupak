@@ -76,6 +76,7 @@ export default {
     error: 'Nepodařilo se importovat recept',
     workerOffline: 'Služba pro import receptů je momentálně nedostupná — inferenční server není připojen. Zkuste to prosím později.',
     workerTimeout: 'Import receptu trvá příliš dlouho — inferenční server neodpověděl včas. Zkuste to prosím později.',
+    noTranslation: 'Bez překladu',
   },
   history: {
     title: 'Historie',

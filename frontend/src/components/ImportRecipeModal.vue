@@ -17,6 +17,7 @@ const emit = defineEmits(['close', 'imported'])
 const mode = ref('url')
 const url = ref('')
 const text = ref('')
+const translateTo = ref(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -26,6 +27,7 @@ function reset() {
   error.value = ''
   loading.value = false
   mode.value = 'url'
+  translateTo.value = null
 }
 
 function close() {
@@ -38,6 +40,9 @@ async function submit() {
   loading.value = true
 
   const payload = mode.value === 'url' ? { url: url.value } : { text: text.value }
+  if (translateTo.value) {
+    payload.language = translateTo.value
+  }
 
   try {
     const { data } = await recipesApi.import(payload)
@@ -75,6 +80,30 @@ async function submit() {
           @click="mode = 'text'"
         >
           {{ t('import.fromText') }}
+        </AppButton>
+      </div>
+
+      <div class="flex gap-2 mb-3">
+        <AppButton
+          :variant="translateTo === null ? 'primary' : 'secondary'"
+          size="sm"
+          @click="translateTo = null"
+        >
+          {{ t('import.noTranslation') }}
+        </AppButton>
+        <AppButton
+          :variant="translateTo === 'English' ? 'primary' : 'secondary'"
+          size="sm"
+          @click="translateTo = 'English'"
+        >
+          🇬🇧 English
+        </AppButton>
+        <AppButton
+          :variant="translateTo === 'Czech' ? 'primary' : 'secondary'"
+          size="sm"
+          @click="translateTo = 'Czech'"
+        >
+          🇨🇿 Czech
         </AppButton>
       </div>
 

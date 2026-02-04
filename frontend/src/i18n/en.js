@@ -76,6 +76,7 @@ export default {
     error: 'Failed to import recipe',
     workerOffline: 'The recipe import service is currently unavailable — the inference server is not connected. Please try again later.',
     workerTimeout: 'The recipe import is taking too long — the inference server did not respond in time. Please try again later.',
+    noTranslation: 'No translation',
   },
   history: {
     title: 'History',

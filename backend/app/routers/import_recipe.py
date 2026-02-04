@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 class ImportRequest(BaseModel):
     url: str | None = None
     text: str | None = None
+    language: str | None = None
 
 
 class ImportIngredient(BaseModel):
@@ -184,7 +185,7 @@ async def import_recipe(
         text = text[:15000]
 
     try:
-        result = await extract_recipe(text)
+        result = await extract_recipe(text, language=req.language)
     except ConnectionError as e:
         logger.error("LLM worker not connected: %s", e)
         raise HTTPException(status_code=503, detail="Inference server is not connected")

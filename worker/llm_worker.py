@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import os
-
 import httpx
 import websockets
 
@@ -22,24 +21,27 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "qwen3:8b")
 RECONNECT_DELAY = 5
 
 EXTRACT_PROMPT = """\
-Extract the recipe from the following text. Return ONLY a JSON object with these three keys: "name", "description", "ingredients".
+/no_think
+Extract the recipe from the following text. Return ONLY a JSON object with these two keys: "name", "ingredients".
 
 - "name": recipe name
-- "description": the cooking steps/instructions as plain text
 - "ingredients": array of ALL ingredients, each with "name" (string), "quantity" (number), and "unit" (string)
+  - "quantity" MUST be a number (not a string). Parse "300 g mascarpone" → quantity: 300, unit: "g", name: "mascarpone"
   - Keep the original units from the recipe (g, kg, ml, l, tablespoon, cup, oz, etc.)
   - Use "x" only for countable items like "4 eggs"
+  - Use base ingredient name only (e.g. "mascarpone" not "500g mascarpone cheese")
 
 The "ingredients" array is REQUIRED.
 
 Text:
 """
 
-FIXUP_PROMPT = """\
-Reformat this recipe JSON. Return ONLY valid JSON with EXACTLY 3 keys: "name", "description", "ingredients".
+FIXUP_DATA_PROMPT = """\
+/no_think
+Reformat this recipe JSON. Return ONLY valid JSON with EXACTLY 2 keys: "name", "ingredients".
 
 Required schema:
-{"name": "string", "description": "markdown string", "ingredients": [{"name": "string", "quantity": number, "unit": "string"}]}
+{"name": "string", "ingredients": [{"name": "string", "quantity": number, "unit": "string"}]}
 
 Rules for ingredients:
 - "quantity" MUST be a number (not a string). Parse "300 g mascarpone" → quantity: 300, unit: "g", name: "mascarpone"
@@ -47,38 +49,63 @@ Rules for ingredients:
 - Convert units: tablespoon→15 ml, teaspoon→5 ml, cup→240 ml, oz→28 g, lb→0.45 kg
 - Use base ingredient name only (e.g. "mascarpone" not "500g mascarpone cheese")
 
-Rules for description:
-- Rewrite as clean, concise markdown with numbered steps
-- Do NOT include ingredients in the description
-- Keep it short — just the cooking steps and key tips
-
-Rules for name/keys:
+Rules for name:
 - If the original has "title" or "recipeName" instead of "name", use that value
-- Remove any extra keys (nutrition, servings, etc.)
+- Remove any extra keys (nutrition, servings, description, etc.)
 
 JSON to reformat:
+"""
+
+FIXUP_DESCRIPTION_PROMPT = """\
+/no_think
+Rewrite the following recipe text as a properly formatted markdown description of the cooking instructions.
+
+Rules:
+- Do NOT include the recipe name or ingredients — only the cooking steps/instructions
+- Include all details: temperatures, times, techniques, and tips from the original recipe
+- Do NOT summarize or shorten the instructions — preserve the full detail
+- Use proper markdown formatting (numbered lists, bold, etc.)
+- Output ONLY the markdown description, nothing else
+
+Recipe text:
+"""
+
+TRANSLATE_PROMPT = """\
+/no_think
+Translate the following JSON into {language}. Return ONLY a JSON object with EXACTLY the same structure.
+
+The JSON has three keys:
+- "name": a string — translate it
+- "ingredients": an array of strings — translate each one, keep the array length the same
+- "description": a string — translate it
+
+Return ONLY the translated JSON, nothing else.
+
+JSON to translate:
 """
 
 VALID_UNITS = {"x", "g", "kg", "ml", "l"}
 
 
-async def ollama_generate(prompt: str) -> str:
+async def ollama_generate(prompt: str, format: str | None = None) -> str:
     """Send a prompt to local Ollama and return the response text."""
+    payload = {
+        "model": LLM_MODEL,
+        "prompt": prompt,
+        "stream": False,
+    }
+    if format:
+        payload["format"] = format
     async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
             f"{OLLAMA_URL}/api/generate",
-            json={
-                "model": LLM_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-            },
+            json=payload,
         )
         response.raise_for_status()
     return response.json().get("response", "")
 
 
-def postprocess_recipe(data: dict) -> dict:
+def postprocess_recipe(data: dict, description: str) -> dict:
     """Validate units, coerce quantities, and clean up ingredients."""
     ingredients = []
     for ing in data.get("ingredients", []):
@@ -101,15 +128,15 @@ def postprocess_recipe(data: dict) -> dict:
 
     return {
         "name": data.get("name", "Imported Recipe"),
-        "description": data.get("description", ""),
+        "description": description.strip(),
         "ingredients": ingredients,
     }
 
 
-async def handle_extract_recipe(text: str) -> dict:
-    """Two-pass LLM extraction: extract → validate → fixup → validate → postprocess."""
-    # First pass: extract raw recipe data from source text
-    raw = await ollama_generate(EXTRACT_PROMPT + text)
+async def handle_extract_recipe(text: str, language: str | None = None) -> dict:
+    """Three-pass LLM extraction (+ optional translation): extract → fixup units → description → translate."""
+    # Pass 1: extract raw recipe data from source text
+    raw = await ollama_generate(EXTRACT_PROMPT + text, format="json")
 
     try:
         json.loads(raw)
@@ -117,16 +144,44 @@ async def handle_extract_recipe(text: str) -> dict:
         logger.error("LLM returned invalid JSON: %s", raw[:500])
         raise ValueError("LLM returned invalid JSON response")
 
-    # Second pass: reformat schema, normalize units, clean up markdown description
-    logger.info("Running fixup pass on LLM output")
-    raw2 = await ollama_generate(FIXUP_PROMPT + raw)
+    # Pass 2: reformat name + ingredients with unit conversion (JSON mode)
+    logger.info("Running data fixup pass on LLM output")
+    raw2 = await ollama_generate(FIXUP_DATA_PROMPT + raw, format="json")
     try:
         data = json.loads(raw2)
     except json.JSONDecodeError:
-        logger.warning("Fixup pass returned invalid JSON, falling back to first pass")
+        logger.warning("Data fixup pass returned invalid JSON, falling back to first pass")
         data = json.loads(raw)
 
-    return postprocess_recipe(data)
+    # Pass 3: generate markdown description (freeform mode)
+    logger.info("Running description pass on original text")
+    description = await ollama_generate(FIXUP_DESCRIPTION_PROMPT + text)
+
+    result = postprocess_recipe(data, description)
+
+    # Pass 3 (optional): translate into requested language
+    if language:
+        logger.info("Running translation pass to %s", language)
+        # Only send translatable text — no quantities/units
+        to_translate = {
+            "name": result["name"],
+            "ingredients": [ing["name"] for ing in result["ingredients"]],
+            "description": result["description"],
+        }
+        prompt = TRANSLATE_PROMPT.format(language=language) + json.dumps(to_translate, ensure_ascii=False)
+        translated_raw = await ollama_generate(prompt, format="json")
+        try:
+            translated = json.loads(translated_raw)
+            result["name"] = translated.get("name", result["name"])
+            result["description"] = translated.get("description", result["description"])
+            translated_names = translated.get("ingredients", [])
+            for i, name in enumerate(translated_names):
+                if i < len(result["ingredients"]) and isinstance(name, str):
+                    result["ingredients"][i]["name"] = name
+        except (json.JSONDecodeError, KeyError, TypeError):
+            logger.warning("Translation pass failed, keeping original language")
+
+    return result
 
 
 async def handle_request(msg: dict) -> dict:
@@ -140,7 +195,7 @@ async def handle_request(msg: dict) -> dict:
             "Processing generate request %s (%d chars)", request_id, len(prompt)
         )
         try:
-            result = await ollama_generate(prompt)
+            result = await ollama_generate(prompt, format="json")
             logger.info(
                 "Completed request %s (%d chars response)", request_id, len(result)
             )
@@ -151,11 +206,12 @@ async def handle_request(msg: dict) -> dict:
 
     if action == "extract_recipe":
         text = msg.get("text", "")
+        language = msg.get("language")
         logger.info(
             "Processing extract_recipe request %s (%d chars)", request_id, len(text)
         )
         try:
-            result = await handle_extract_recipe(text)
+            result = await handle_extract_recipe(text, language=language)
             logger.info("Completed extract_recipe request %s", request_id)
             return {"request_id": request_id, "result": result}
         except Exception as e:

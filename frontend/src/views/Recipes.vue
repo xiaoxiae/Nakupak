@@ -27,6 +27,7 @@ const showModal = ref(false)
 const editingRecipe = ref(null)
 const showImportModal = ref(false)
 const preselectedItemIds = ref([])
+const pendingIngredients = ref([])
 const prefilledName = ref('')
 const prefilledDescription = ref('')
 const prefilledImageUrl = ref('')
@@ -45,6 +46,7 @@ onMounted(async () => {
 function startCreate() {
   editingRecipe.value = null
   preselectedItemIds.value = []
+  pendingIngredients.value = []
   prefilledName.value = ''
   prefilledDescription.value = ''
   prefilledImageUrl.value = ''
@@ -67,25 +69,21 @@ function renderMarkdown(text) {
 async function handleImported(data) {
   showImportModal.value = false
 
-  // Create items for each ingredient, reusing existing ones by name
-  const itemIds = []
-  const itemQuantities = {}
-  const itemUnits = {}
+  // Match existing items by name, keep unmatched as pending (no item creation yet)
+  const matched = []
+  const pending = []
 
   for (const ing of data.ingredients) {
-    // Check if item already exists
-    let existing = listStore.items.find(i => i.name.toLowerCase() === ing.name.toLowerCase())
-    if (!existing) {
-      const { data: created } = await itemsApi.create({ name: ing.name })
-      await listStore.fetchItems()
-      existing = created
+    const existing = listStore.items.find(i => i.name.toLowerCase() === ing.name.toLowerCase())
+    if (existing) {
+      matched.push({ item_id: existing.id, quantity: ing.quantity, unit: ing.unit })
+    } else {
+      pending.push({ name: ing.name, quantity: ing.quantity, unit: ing.unit })
     }
-    itemIds.push(existing.id)
-    itemQuantities[existing.id] = ing.quantity
-    itemUnits[existing.id] = ing.unit
   }
 
-  preselectedItemIds.value = itemIds.map(id => ({ item_id: id, quantity: itemQuantities[id] || 1, unit: itemUnits[id] || 'x' }))
+  preselectedItemIds.value = matched
+  pendingIngredients.value = pending
   prefilledName.value = data.name || ''
   prefilledDescription.value = data.description || ''
   prefilledImageUrl.value = data.image_url || ''
@@ -99,20 +97,27 @@ function startEdit(recipe) {
 }
 
 async function handleSave(data) {
+  // Create items for any pending ingredients (from import)
+  const allItems = [...data.items]
+  if (data.pendingIngredients?.length) {
+    for (const ing of data.pendingIngredients) {
+      const { data: created } = await itemsApi.create({ name: ing.name })
+      allItems.push({ item_id: created.id, quantity: ing.quantity, unit: ing.unit })
+    }
+    await listStore.fetchItems()
+  }
+
+  const payload = {
+    name: data.name,
+    description: data.description,
+    image_url: data.image_url,
+    items: allItems,
+  }
+
   if (data.id) {
-    await recipesApi.update(data.id, {
-      name: data.name,
-      description: data.description,
-      image_url: data.image_url,
-      items: data.items,
-    })
+    await recipesApi.update(data.id, payload)
   } else {
-    await recipesApi.create({
-      name: data.name,
-      description: data.description,
-      image_url: data.image_url,
-      items: data.items,
-    })
+    await recipesApi.create(payload)
   }
   await listStore.fetchRecipes()
   showModal.value = false
@@ -195,6 +200,7 @@ async function addRecipeToList(recipe) {
       :show="showModal"
       :edit-recipe="editingRecipe"
       :preselected-item-ids="preselectedItemIds"
+      :pending-ingredients="pendingIngredients"
       :prefilled-name="prefilledName"
       :prefilled-description="prefilledDescription"
       :prefilled-image-url="prefilledImageUrl"
