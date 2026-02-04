@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Household, Category, Item, ShoppingListItem, RecipeItem, SessionItem
+from ..models import Household, Category, Item, ShoppingListItem, RecipeItem, SessionItem, ShoppingSession
 from ..schemas import (
     CategoryCreate, CategoryUpdate, CategoryResponse,
     ItemCreate, ItemUpdate, ItemResponse, MergeItemsRequest,
@@ -109,6 +109,19 @@ def create_item(
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+
+    # Re-link orphaned session items with matching name to the new item
+    db.query(SessionItem).filter(
+        SessionItem.item_id == None,
+        SessionItem.item_name == db_item.name,
+        SessionItem.session_id.in_(
+            db.query(ShoppingSession.id).filter(
+                ShoppingSession.household_id == household.id
+            )
+        )
+    ).update({"item_id": db_item.id}, synchronize_session=False)
+    db.commit()
+
     background_tasks.add_task(broadcast_update, household.id, "items_updated", {})
     return db_item
 

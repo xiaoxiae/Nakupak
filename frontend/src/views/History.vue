@@ -47,7 +47,10 @@ function formatDate(dateString) {
 }
 
 async function ensureItemId(sessionItem) {
-  if (sessionItem.item_id) return sessionItem.item_id
+  if (sessionItem.item_id) {
+    const exists = listStore.items.find(i => i.id === sessionItem.item_id)
+    if (exists) return sessionItem.item_id
+  }
   const item = await listStore.createItem(sessionItem.item_name, null)
   await listStore.fetchItems()
   return item.id
@@ -117,7 +120,7 @@ async function addItemToList(sessionItem) {
             :name="getItemName(item)"
             :count="item.quantity"
             :unit="item.unit || 'x'"
-            :clickable="!!item.item_id"
+            clickable
             @click="addItemToList(item)"
           />
         </CollectionCard>
