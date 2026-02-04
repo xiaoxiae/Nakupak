@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Minus, Plus, X } from 'lucide-vue-next'
+import { ChevronUp, ChevronDown, X } from 'lucide-vue-next'
 import { Motion } from 'motion-v'
 import ItemRow from './ItemRow.vue'
 import IconButton from './IconButton.vue'
@@ -117,8 +117,7 @@ onBeforeUnmount(() => {
     <div class="flex items-center gap-2">
       <ItemRow
         :name="item.name"
-        :category="item.category"
-        :accent-color="recipeColor"
+        :accent-color="item.category?.color"
         :checked="checked"
         :clickable="checked !== null"
         class="flex-1 min-w-0"
@@ -126,10 +125,7 @@ onBeforeUnmount(() => {
         @toggle-check="emit('toggleCheck')"
       >
         <template #actions>
-          <div class="flex items-center gap-2" @click.stop>
-            <IconButton @click="emit('decrement')">
-              <Minus class="w-5 h-5" />
-            </IconButton>
+          <div class="flex items-center gap-1" @click.stop>
             <div class="relative" ref="selectorRef">
               <div class="flex items-center" v-if="editing">
                 <input
@@ -170,13 +166,18 @@ onBeforeUnmount(() => {
                 </button>
               </div>
             </div>
-            <IconButton @click="emit('increment')">
-              <Plus class="w-5 h-5" />
-            </IconButton>
+            <div class="flex flex-col">
+              <IconButton tiny @click="emit('increment')">
+                <ChevronUp class="w-4 h-4" />
+              </IconButton>
+              <IconButton tiny @click="emit('decrement')">
+                <ChevronDown class="w-4 h-4" />
+              </IconButton>
+            </div>
           </div>
         </template>
       </ItemRow>
-      <IconButton class="mb-2" @click="emit('remove')">
+      <IconButton small class="mb-2" @click="emit('remove')">
         <X class="w-5 h-5" />
       </IconButton>
     </div>
