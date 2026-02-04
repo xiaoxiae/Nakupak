@@ -21,6 +21,15 @@ def get_shopping_list(
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
+    # Clean up any orphaned shopping list items (item was deleted via bulk operation)
+    db.query(ShoppingListItem).filter(
+        ShoppingListItem.household_id == household.id,
+        ~ShoppingListItem.item_id.in_(
+            db.query(Item.id)
+        )
+    ).delete(synchronize_session=False)
+    db.commit()
+
     return db.query(ShoppingListItem).filter(
         ShoppingListItem.household_id == household.id
     ).all()
