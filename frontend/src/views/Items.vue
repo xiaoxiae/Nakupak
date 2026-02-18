@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
-import { nameCompare } from '../utils/sort'
+import { nameCompare, normalizeForSearch } from '../utils/sort'
 import { recipes as recipesApi } from '../services/api'
 import { Pencil, Trash2, Plus, ListPlus, Tag, Merge, CookingPot, X } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
@@ -52,20 +52,11 @@ onMounted(async () => {
   ])
 })
 
-const filteredItems = computed(() => {
-  if (!searchQuery.value) return listStore.items
-  const query = searchQuery.value.toLowerCase()
-  return listStore.items.filter(item =>
-    item.name.toLowerCase().includes(query)
-  )
-})
-
-const filteredGroupedItems = computed(() => {
-  const itemsToGroup = filteredItems.value
+const allGroupedItems = computed(() => {
   const grouped = {}
   const uncategorized = []
 
-  for (const item of itemsToGroup) {
+  for (const item of listStore.items) {
     const categoryId = item.category_id
     if (categoryId) {
       if (!grouped[categoryId]) {
@@ -91,7 +82,34 @@ const filteredGroupedItems = computed(() => {
     sorted.push({ category: null, items: uncategorized })
   }
 
+  const query = normalizeForSearch(searchQuery.value)
+  if (query) {
+    for (const group of sorted) {
+      const matching = group.items.filter(i => normalizeForSearch(i.name).includes(query))
+      const nonMatching = group.items.filter(i => !normalizeForSearch(i.name).includes(query))
+      group.items = [...matching, ...nonMatching]
+    }
+  }
+
   return sorted
+})
+
+const matchingIds = computed(() => {
+  const query = normalizeForSearch(searchQuery.value)
+  if (!query) return null
+  return new Set(
+    listStore.items
+      .filter(item => normalizeForSearch(item.name).includes(query))
+      .map(item => item.id)
+  )
+})
+
+function isMatching(itemId) {
+  return !matchingIds.value || matchingIds.value.has(itemId)
+}
+
+const hasAnyMatch = computed(() => {
+  return !matchingIds.value || matchingIds.value.size > 0
 })
 
 const selectedCount = computed(() => selectedIds.value.size)
@@ -227,34 +245,41 @@ const mergeTargetName = computed(() => {
     <template #default>
       <SearchBar v-model="searchQuery" :placeholder="t('items.searchPlaceholder')" />
 
-      <EmptyState v-if="filteredItems.length === 0 && searchQuery" :title="t('items.noMatch', { query: searchQuery })" />
-      <EmptyState v-else-if="filteredItems.length === 0" :title="t('items.emptyTitle')" :subtitle="t('items.emptySubtitle')" />
+      <EmptyState v-if="!hasAnyMatch && searchQuery" :title="t('items.noMatch', { query: searchQuery })" />
+      <EmptyState v-else-if="listStore.items.length === 0" :title="t('items.emptyTitle')" :subtitle="t('items.emptySubtitle')" />
 
-      <AnimatedCategoryList :groups="filteredGroupedItems" v-slot="{ group }">
-        <ItemRow
+      <AnimatedCategoryList :groups="allGroupedItems" v-slot="{ group }">
+        <TransitionGroup name="item-reorder" tag="div">
+        <div
           v-for="item in group.items"
           :key="item.id"
-          :name="item.name"
-          :accent-color="group.category?.color"
-          :checked="selectedIds.has(item.id)"
-          :clickable="true"
-          @click="toggleSelect(item.id)"
-          @toggle-check="toggleSelect(item.id)"
+          class="transition-opacity duration-200"
+          :class="{ 'opacity-40': !isMatching(item.id) }"
         >
-          <template #actions>
-            <div class="flex items-center gap-1">
-              <IconButton small @click.stop="addToList(item)">
-                <Plus class="w-4 h-4" />
-              </IconButton>
-              <IconButton small @click.stop="startEdit(item)">
-                <Pencil class="w-4 h-4" />
-              </IconButton>
-              <IconButton small @click.stop="confirmDeleteItem(item)">
-                <Trash2 class="w-4 h-4" />
-              </IconButton>
-            </div>
-          </template>
-        </ItemRow>
+          <ItemRow
+            :name="item.name"
+            :accent-color="group.category?.color"
+            :checked="selectedIds.has(item.id)"
+            :clickable="true"
+            @click="toggleSelect(item.id)"
+            @toggle-check="toggleSelect(item.id)"
+          >
+            <template #actions>
+              <div class="flex items-center gap-1">
+                <IconButton small @click.stop="addToList(item)">
+                  <Plus class="w-4 h-4" />
+                </IconButton>
+                <IconButton small @click.stop="startEdit(item)">
+                  <Pencil class="w-4 h-4" />
+                </IconButton>
+                <IconButton small @click.stop="confirmDeleteItem(item)">
+                  <Trash2 class="w-4 h-4" />
+                </IconButton>
+              </div>
+            </template>
+          </ItemRow>
+        </div>
+        </TransitionGroup>
       </AnimatedCategoryList>
 
       <AnimatePresence>
@@ -388,3 +413,9 @@ const mergeTargetName = computed(() => {
     </template>
   </PageLayout>
 </template>
+
+<style scoped>
+.item-reorder-move {
+  transition: transform 0.3s ease;
+}
+</style>

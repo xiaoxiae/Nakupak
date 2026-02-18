@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
+import { normalizeForSearch } from '../utils/sort'
 import { Plus } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
 import SearchBar from './SearchBar.vue'
@@ -21,20 +22,26 @@ const emit = defineEmits(['select', 'create'])
 
 const search = ref('')
 
+defineExpose({ search })
+
 const filteredItems = computed(() => {
-  const term = search.value.toLowerCase().trim()
+  const term = normalizeForSearch(search.value.trim())
   if (!term) return listStore.poolItems
 
   return listStore.items
-    .filter(item => item.name.toLowerCase().includes(term))
+    .filter(item => normalizeForSearch(item.name).includes(term))
     .map(item => ({ item, score: 0, frequency: 0 }))
 })
 
 const exactMatch = computed(() => {
-  const term = search.value.toLowerCase().trim()
+  const term = normalizeForSearch(search.value.trim())
   if (!term) return true
-  return listStore.items.some(item => item.name.toLowerCase() === term)
+  return listStore.items.some(item => normalizeForSearch(item.name) === term)
 })
+
+function getListEntry(itemId) {
+  return listStore.listItems.find(li => li.item_id === itemId)
+}
 
 async function handleEnter() {
   if (search.value.trim() && !exactMatch.value) {
@@ -93,8 +100,9 @@ async function createAndEmit() {
           v-for="poolItem in filteredItems"
           :key="poolItem.item.id"
           :name="poolItem.item.name"
-          :count="poolItem.frequency"
-          count-style="parentheses"
+          :checked="getListEntry(poolItem.item.id) ? true : null"
+          :count="getListEntry(poolItem.item.id)?.quantity"
+          :unit="getListEntry(poolItem.item.id)?.unit"
           clickable
           @click="handleSelect(poolItem.item)"
         />

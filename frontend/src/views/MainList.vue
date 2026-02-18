@@ -1,14 +1,14 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
 import { getUnit } from '../utils/units'
+import { normalizeForSearch } from '../utils/sort'
 import { Trash2 } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
 import PageLayout from '../components/PageLayout.vue'
-import AnimatedCategoryList from '../components/AnimatedCategoryList.vue'
-import ItemCardList from '../components/ItemCardList.vue'
+import ItemCard from '../components/ItemCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemSearchPicker from '../components/ItemSearchPicker.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
@@ -19,6 +19,74 @@ const listStore = useListStore()
 const toastStore = useToastStore()
 
 const showClearConfirm = ref(false)
+const searchPicker = ref(null)
+
+const searchTerm = computed(() => searchPicker.value?.search || '')
+
+const matchingItemIds = computed(() => {
+  const term = normalizeForSearch(searchTerm.value.trim())
+  if (!term) return null
+  return new Set(
+    listStore.listItems
+      .filter(li => normalizeForSearch(li.item?.name || '').includes(term))
+      .map(li => li.id)
+  )
+})
+
+function isListItemMatching(listItemId) {
+  return !matchingItemIds.value || matchingItemIds.value.has(listItemId)
+}
+
+const sortedUncheckedGroups = computed(() => {
+  const groups = listStore.uncheckedGroupedByCategory
+  const term = normalizeForSearch(searchTerm.value.trim())
+  if (!term) return groups
+  return groups.map(g => ({
+    ...g,
+    items: [
+      ...g.items.filter(i => normalizeForSearch(i.item?.name || '').includes(term)),
+      ...g.items.filter(i => !normalizeForSearch(i.item?.name || '').includes(term)),
+    ]
+  }))
+})
+
+const flatList = computed(() => {
+  const result = []
+  for (const group of sortedUncheckedGroups.value) {
+    result.push({
+      type: 'category-header',
+      key: `cat-${group.category?.id || 'uncategorized'}`,
+      category: group.category,
+      count: group.items.length,
+    })
+    for (const li of group.items) {
+      result.push({
+        type: 'item',
+        key: li.id,
+        listItem: li,
+        dimmed: !isListItemMatching(li.id),
+        checked: false,
+      })
+    }
+  }
+  if (listStore.checkedItems.length > 0) {
+    result.push({
+      type: 'purchased-header',
+      key: 'purchased-header',
+      count: listStore.checkedItems.length,
+    })
+    for (const li of listStore.checkedItems) {
+      result.push({
+        type: 'item',
+        key: li.id,
+        listItem: li,
+        dimmed: false,
+        checked: true,
+      })
+    }
+  }
+  return result
+})
 
 onMounted(async () => {
   await Promise.all([
@@ -83,6 +151,7 @@ function getRecipeColor(listItem) {
 <template>
   <PageLayout :title="t('mainList.title')">
     <ItemSearchPicker
+      ref="searchPicker"
       :placeholder="t('mainList.searchPlaceholder')"
       @select="addToList"
       @create="addToList"
@@ -111,65 +180,44 @@ function getRecipeColor(listItem) {
         </button>
       </Motion>
       </AnimatePresence>
-      <AnimatedCategoryList :groups="listStore.uncheckedGroupedByCategory" v-slot="{ group }">
-            <ItemCardList
-              :items="group.items.map(li => ({
-                id: li.id,
-                item: li.item,
-                quantity: li.quantity,
-                unit: li.unit || 'x',
-                recipeColor: getRecipeColor(li),
-                checked: !!li.checked,
-                _raw: li,
-              }))"
-              @increment="(entry) => handleIncrement(entry._raw)"
-              @decrement="(entry) => handleDecrement(entry._raw)"
-              @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
-              @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
-              @remove="(entry) => listStore.removeItem(entry._raw.id)"
-              @toggle-check="(entry) => listStore.toggleCheck(entry._raw.id)"
-            />
-      </AnimatedCategoryList>
-
-      <AnimatePresence :initial="false">
-        <Motion
-          v-if="listStore.checkedItems.length > 0"
-          key="purchased-section"
-          :initial="{ opacity: 0, height: 0 }"
-          :animate="{ opacity: 1, height: 'auto' }"
-          :exit="{ opacity: 0, height: 0 }"
-          :transition="{ duration: 0.25, ease: 'easeOut' }"
-          class="overflow-hidden"
-        >
-          <div class="mt-4">
-            <div class="flex items-center gap-2 mb-3 pl-1">
-              <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">
-                {{ t('mainList.purchased') }}
-              </h3>
-              <span class="text-xs text-text-muted">({{ listStore.checkedItems.length }})</span>
-            </div>
-            <div class="opacity-60">
-              <ItemCardList
-                :items="listStore.checkedItems.map(li => ({
-                  id: li.id,
-                  item: li.item,
-                  quantity: li.quantity,
-                  unit: li.unit || 'x',
-                  recipeColor: getRecipeColor(li),
-                  checked: true,
-                  _raw: li,
-                }))"
-                @increment="(entry) => handleIncrement(entry._raw)"
-                @decrement="(entry) => handleDecrement(entry._raw)"
-                @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
-                @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
-                @remove="(entry) => listStore.removeItem(entry._raw.id)"
-                @toggle-check="(entry) => listStore.toggleCheck(entry._raw.id)"
-              />
-            </div>
+      <TransitionGroup name="list-item" tag="div" class="relative">
+        <div v-for="entry in flatList" :key="entry.key">
+          <!-- Category header -->
+          <div v-if="entry.type === 'category-header'" class="flex items-center gap-2 mb-3 mt-6 first:mt-0 pl-1">
+            <h3 class="text-sm font-semibold uppercase tracking-wide"
+                :style="entry.category ? { color: entry.category.color } : { color: 'var(--text-muted)' }">
+              {{ entry.category?.name || t('common.uncategorized') }}
+            </h3>
+            <span class="text-xs text-text-muted">({{ entry.count }})</span>
           </div>
-        </Motion>
-      </AnimatePresence>
+          <!-- Purchased header -->
+          <div v-else-if="entry.type === 'purchased-header'" class="flex items-center gap-2 mb-3 mt-6 pl-1">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-text-muted">
+              {{ t('mainList.purchased') }}
+            </h3>
+            <span class="text-xs text-text-muted">({{ entry.count }})</span>
+          </div>
+          <!-- Item card -->
+          <div v-else
+            class="transition-opacity duration-200"
+            :class="{ 'opacity-40': entry.dimmed, 'opacity-60': entry.checked }"
+          >
+            <ItemCard
+              :item="entry.listItem.item"
+              :quantity="entry.listItem.quantity"
+              :unit="entry.listItem.unit || 'x'"
+              :recipe-color="getRecipeColor(entry.listItem)"
+              :checked="entry.checked"
+              @increment="handleIncrement(entry.listItem)"
+              @decrement="handleDecrement(entry.listItem)"
+              @change-unit="(unit) => handleChangeUnit(entry.listItem, unit)"
+              @update-quantity="(qty) => handleUpdateQuantity(entry.listItem, qty)"
+              @remove="listStore.removeItem(entry.listItem.id)"
+              @toggle-check="listStore.toggleCheck(entry.listItem.id)"
+            />
+          </div>
+        </div>
+      </TransitionGroup>
       <AnimatePresence :initial="false">
       <Motion
         v-if="listStore.listItems.length === 0"
@@ -213,3 +261,19 @@ function getRecipeColor(listItem) {
     </template>
   </PageLayout>
 </template>
+
+<style scoped>
+.list-item-move,
+.list-item-enter-active,
+.list-item-leave-active {
+  transition: all 0.3s ease;
+}
+.list-item-enter-from,
+.list-item-leave-to {
+  opacity: 0;
+}
+.list-item-leave-active {
+  position: absolute;
+  width: 100%;
+}
+</style>

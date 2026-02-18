@@ -52,6 +52,7 @@ export default {
     noCategory: 'Bez kategorie',
     apply: 'Použít',
     addedToList: 'Přidáno na seznam',
+    otherItems: 'Ostatní položky',
   },
   recipes: {
     title: 'Recepty',
