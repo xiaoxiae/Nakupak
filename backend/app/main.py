@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import os
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,7 +9,6 @@ from contextlib import asynccontextmanager
 from .database import engine, SessionLocal
 from .websocket import manager
 from .auth import get_household_from_jwt
-from .llm_worker_manager import llm_worker_manager
 from .routers import auth, items, list, recipes, sessions, import_recipe
 
 
@@ -96,25 +93,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
             data = await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket, household_id)
-
-
-WORKER_SECRET = os.environ.get("WORKER_SECRET", "dev-worker-secret")
-
-
-@app.websocket("/api/ws/llm-worker")
-async def llm_worker_endpoint(websocket: WebSocket, token: str = Query(None)):
-    if not WORKER_SECRET or token != WORKER_SECRET:
-        await websocket.close(code=1008)
-        return
-
-    await websocket.accept()
-    await llm_worker_manager.register(websocket)
-    try:
-        while True:
-            raw = await websocket.receive_text()
-            llm_worker_manager.handle_message(raw)
-    except WebSocketDisconnect:
-        await llm_worker_manager.unregister(websocket)
 
 
 @app.get("/api/health")

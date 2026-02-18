@@ -74,8 +74,8 @@ export default {
     processing: 'Extrahování receptu...',
     submit: 'Importovat',
     error: 'Nepodařilo se importovat recept',
-    workerOffline: 'Služba pro import receptů je momentálně nedostupná — inferenční server není připojen. Zkuste to prosím později.',
-    workerTimeout: 'Import receptu trvá příliš dlouho — inferenční server neodpověděl včas. Zkuste to prosím později.',
+    workerOffline: 'Služba pro import receptů je momentálně nedostupná — API klíč není nakonfigurován. Kontaktujte prosím správce.',
+    workerTimeout: 'Import receptu trvá příliš dlouho — požadavek vypršel. Zkuste to prosím později.',
     noTranslation: 'Bez překladu',
   },
   history: {

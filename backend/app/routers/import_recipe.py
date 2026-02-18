@@ -187,11 +187,11 @@ async def import_recipe(
     try:
         result = await extract_recipe(text, language=req.language)
     except ConnectionError as e:
-        logger.error("LLM worker not connected: %s", e)
-        raise HTTPException(status_code=503, detail="Inference server is not connected")
+        logger.error("Anthropic API not configured: %s", e)
+        raise HTTPException(status_code=503, detail="Anthropic API key is not configured")
     except TimeoutError as e:
-        logger.error("LLM worker timeout: %s", e)
-        raise HTTPException(status_code=504, detail="LLM worker did not respond in time")
+        logger.error("Anthropic API timeout: %s", e)
+        raise HTTPException(status_code=504, detail="Recipe extraction timed out")
     except Exception as e:
         logger.error("Recipe extraction failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Recipe extraction failed: {e}")

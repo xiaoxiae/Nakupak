@@ -74,8 +74,8 @@ export default {
     processing: 'Extracting recipe...',
     submit: 'Import',
     error: 'Failed to import recipe',
-    workerOffline: 'The recipe import service is currently unavailable — the inference server is not connected. Please try again later.',
-    workerTimeout: 'The recipe import is taking too long — the inference server did not respond in time. Please try again later.',
+    workerOffline: 'The recipe import service is currently unavailable — the API key is not configured. Please contact the administrator.',
+    workerTimeout: 'The recipe import is taking too long — the request timed out. Please try again later.',
     noTranslation: 'No translation',
   },
   history: {
