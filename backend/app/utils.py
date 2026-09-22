@@ -13,3 +13,21 @@ def strip_emoji(s: str) -> str:
 def sort_key(s: str) -> str:
     s = strip_emoji(s).lower()
     return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+
+
+# Raster image types we accept for uploads; SVG is excluded since it can carry scripts.
+_IMAGE_EXTENSIONS = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+
+
+def image_extension(content_type: str | None) -> str | None:
+    """Safe file extension for an image content type, or None if not an allowed image."""
+    if not content_type:
+        return None
+    mime = content_type.split(";")[0].strip().lower()
+    return _IMAGE_EXTENSIONS.get(mime)

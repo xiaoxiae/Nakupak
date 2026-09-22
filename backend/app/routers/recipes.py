@@ -9,7 +9,7 @@ from ..database import get_db
 from ..models import Household, Recipe, RecipeItem
 from ..schemas import RecipeCreate, RecipeUpdate, RecipeResponse, RecipeItemBase
 from ..auth import get_current_household
-from ..utils import sort_key
+from ..utils import image_extension, sort_key
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
@@ -21,10 +21,10 @@ async def upload_image(
     file: UploadFile,
     household: Household = Depends(get_current_household),
 ):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
+    ext = image_extension(file.content_type)
+    if ext is None:
+        raise HTTPException(status_code=400, detail="File must be a JPEG, PNG, GIF or WebP image")
 
-    ext = Path(file.filename or "img").suffix or ".jpg"
     filename = f"{uuid.uuid4().hex}{ext}"
     dest = _uploads_dir / filename
     content = await file.read()

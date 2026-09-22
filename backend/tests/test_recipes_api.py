@@ -86,3 +86,24 @@ def test_recipe_household_isolation(client, household, second_household, auth_he
     client.post("/api/recipes", json={"name": "H1 Recipe"}, headers=auth_headers)
     assert len(client.get("/api/recipes", headers=auth_headers).json()) == 1
     assert len(client.get("/api/recipes", headers=second_auth_headers).json()) == 0
+
+
+def test_upload_image_uses_extension_from_content_type(authed_client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.routers.recipes._uploads_dir", tmp_path)
+    resp = authed_client.post(
+        "/api/recipes/upload-image",
+        files={"file": ("evil.html", b"<script>alert(1)</script>", "image/png")},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["image_url"].endswith(".png")
+    assert [p.suffix for p in tmp_path.iterdir()] == [".png"]
+
+
+def test_upload_image_rejects_svg(authed_client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.routers.recipes._uploads_dir", tmp_path)
+    resp = authed_client.post(
+        "/api/recipes/upload-image",
+        files={"file": ("x.svg", b"<svg onload='alert(1)'/>", "image/svg+xml")},
+    )
+    assert resp.status_code == 400
+    assert list(tmp_path.iterdir()) == []

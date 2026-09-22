@@ -28,3 +28,12 @@ def test_empty_string():
 
 def test_whitespace_only():
     assert strip_emoji("   ") == ""
+
+
+def test_image_extension():
+    from app.utils import image_extension
+    assert image_extension("image/jpeg") == ".jpg"
+    assert image_extension("IMAGE/PNG; charset=binary") == ".png"
+    assert image_extension("image/svg+xml") is None
+    assert image_extension("image/html") is None
+    assert image_extension(None) is None

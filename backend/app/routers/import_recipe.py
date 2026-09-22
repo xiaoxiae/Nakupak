@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from ..auth import get_current_household
 from ..llm import extract_recipe
 from ..models import Household
+from ..utils import image_extension
 
 _uploads_dir = Path(__file__).resolve().parent.parent.parent.parent / "data" / "uploads"
 
@@ -209,11 +210,8 @@ async def import_recipe(
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 img_resp = await client.get(image_url, headers={"User-Agent": "Mozilla/5.0"})
                 img_resp.raise_for_status()
-                content_type = img_resp.headers.get("content-type", "")
-                if content_type.startswith("image/"):
-                    ext = "." + content_type.split("/")[1].split(";")[0].strip()
-                    if ext == ".jpeg":
-                        ext = ".jpg"
+                ext = image_extension(img_resp.headers.get("content-type"))
+                if ext is not None:
                     filename = f"{uuid.uuid4().hex}{ext}"
                     (_uploads_dir / filename).write_bytes(img_resp.content)
                     result["image_url"] = f"/api/uploads/{filename}"
