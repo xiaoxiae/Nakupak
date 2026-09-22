@@ -1,32 +1,33 @@
-import re
 from datetime import timedelta, datetime, timezone
 from jose import jwt
 
 from app.auth import (
-    generate_household_token,
+    hash_password,
+    verify_password,
     create_access_token,
     SECRET_KEY,
     ALGORITHM,
 )
 
 
-def test_token_format():
-    token = generate_household_token()
-    assert re.match(r"^[0-9A-F]{4}-[0-9A-F]{4}$", token)
+def test_password_roundtrip():
+    stored = hash_password("secret")
+    assert stored.startswith("pbkdf2_sha256$")
+    assert verify_password("secret", stored)
+    assert not verify_password("Secret", stored)
 
 
-def test_token_checksum():
-    for _ in range(20):
-        token = generate_household_token()
-        digits = token.replace("-", "")
-        digit_sum = sum(int(c, 16) for c in digits)
-        assert digit_sum % 4 == 0
+def test_password_hash_is_salted():
+    assert hash_password("secret") != hash_password("secret")
 
 
-def test_token_uniqueness():
-    tokens = {generate_household_token() for _ in range(50)}
-    # With 8 hex digits, collisions in 50 samples are extremely unlikely
-    assert len(tokens) >= 45
+def test_empty_stored_hash_matches_only_empty_password():
+    assert verify_password("", "")
+    assert not verify_password("secret", "")
+
+
+def test_malformed_stored_hash_rejected():
+    assert not verify_password("secret", "garbage")
 
 
 def test_jwt_contains_sub():

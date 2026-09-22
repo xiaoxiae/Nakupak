@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Optional
 
 
 class Token(BaseModel):
@@ -12,12 +12,19 @@ class TokenData(BaseModel):
     household_id: int | None = None
 
 
-class HouseholdJoin(BaseModel):
-    token: str
+class HouseholdCredentials(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    password: str
+
+
+class HouseholdUpdate(BaseModel):
+    name: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
 
 
 class HouseholdResponse(BaseModel):
-    token: str
+    name: str
     created_at: datetime
 
     class Config:

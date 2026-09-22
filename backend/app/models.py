@@ -8,7 +8,8 @@ class Household(Base):
     __tablename__ = "households"
 
     id = Column(Integer, primary_key=True, index=True)
-    token = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False, server_default="")
     created_at = Column(DateTime, server_default=func.now())
 
     categories = relationship("Category", back_populates="household")

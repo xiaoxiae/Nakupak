@@ -61,7 +61,7 @@ def client(db_session):
 @pytest.fixture
 def household(db_session):
     """Pre-created household."""
-    h = Household(token="AAAA-BBBB")
+    h = Household(name="AAAA-BBBB")
     db_session.add(h)
     db_session.commit()
     db_session.refresh(h)
@@ -95,7 +95,7 @@ def authed_client(db_session, household):
 
 @pytest.fixture
 def second_household(db_session):
-    h = Household(token="CCCC-DDDD")
+    h = Household(name="CCCC-DDDD")
     db_session.add(h)
     db_session.commit()
     db_session.refresh(h)
