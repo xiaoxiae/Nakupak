@@ -26,9 +26,10 @@ api.interceptors.response.use(
 )
 
 export const auth = {
-  create: () => api.post('/api/auth/create'),
-  join: (token) => api.post('/api/auth/join', { token }),
+  create: (name, password) => api.post('/api/auth/create', { name, password }),
+  login: (name, password) => api.post('/api/auth/login', { name, password }),
   me: () => api.get('/api/auth/me'),
+  update: (data) => api.patch('/api/auth/me', data),
 }
 
 export const categories = {

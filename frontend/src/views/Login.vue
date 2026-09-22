@@ -1,93 +1,49 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { QrCode } from 'lucide-vue-next'
+import { Eye, EyeOff } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useSyncStore } from '../stores/sync'
-import QrScanModal from '../components/QrScanModal.vue'
 import AppButton from '../components/AppButton.vue'
 
 const { t } = useI18n()
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const syncStore = useSyncStore()
 
-const shareToken = ref('')
+const name = ref('')
+const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const loading = ref(false)
-const showScanModal = ref(false)
 
-function extractToken(text) {
-  try {
-    const url = new URL(text)
-    const token = url.searchParams.get('token')
-    if (token) return token
-  } catch {
-    // not a URL, use as-is
-  }
-  return text
+function errorMessage(e) {
+  const status = e.response?.status
+  if (status === 401) return t('login.invalidCredentials')
+  if (status === 409) return t('login.nameTaken')
+  return e.response?.data?.detail || t('login.error')
 }
 
-function onScanned(text) {
-  showScanModal.value = false
-  shareToken.value = extractToken(text)
-  joinList()
-}
-
-onMounted(() => {
-  const token = route.query.token
-  if (token) {
-    shareToken.value = token
-    joinList()
-  }
-})
-
-function isValidToken(code) {
-  const hex = code.replace(/[^0-9A-F]/gi, '').toUpperCase()
-  if (hex.length !== 8) return false
-  const sum = [...hex].reduce((s, c) => s + parseInt(c, 16), 0)
-  return sum % 4 === 0
-}
-
-function onTokenInput(e) {
-  // Strip to hex chars, auto-insert dash
-  let raw = e.target.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase().slice(0, 8)
-  if (raw.length > 4) raw = raw.slice(0, 4) + '-' + raw.slice(4)
-  shareToken.value = raw
-
-  if (isValidToken(raw)) {
-    joinList()
-  }
-}
-
-async function createList() {
-  error.value = ''
-  loading.value = true
-
-  try {
-    await authStore.createHousehold()
-    syncStore.connect()
-    router.push('/')
-  } catch (e) {
-    error.value = e.response?.data?.detail || t('login.error')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function joinList() {
+async function submit(action) {
   if (loading.value) return
   error.value = ''
+  if (!name.value.trim() || (action === 'create' && !password.value)) {
+    error.value = t('login.fillBoth')
+    return
+  }
   loading.value = true
 
   try {
-    await authStore.joinHousehold(shareToken.value.trim())
+    if (action === 'create') {
+      await authStore.createHousehold(name.value.trim(), password.value)
+    } else {
+      await authStore.login(name.value.trim(), password.value)
+    }
     syncStore.connect()
     router.push('/')
   } catch (e) {
-    error.value = e.response?.data?.detail || t('login.error')
+    error.value = errorMessage(e)
   } finally {
     loading.value = false
   }
@@ -100,42 +56,52 @@ async function joinList() {
       <h1 class="text-3xl font-bold text-primary mb-1">{{ t('login.title') }}</h1>
       <p class="text-text-muted mb-8">{{ t('login.tagline') }}</p>
 
-      <div class="flex flex-col gap-4">
-        <AppButton variant="primary" block :disabled="loading" @click="createList">
-          {{ loading ? t('login.loading') : t('login.create') }}
+      <form class="flex flex-col gap-4" @submit.prevent="submit('login')">
+        <input
+          v-model="name"
+          type="text"
+          autocomplete="username"
+          :placeholder="t('login.name')"
+          :disabled="loading"
+          class="px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+        />
+
+        <div class="relative">
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            :placeholder="t('login.password')"
+            :disabled="loading"
+            class="w-full pl-4 pr-12 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+          />
+          <button
+            type="button"
+            class="absolute inset-y-0 right-0 px-3 text-text-muted hover:text-text-secondary"
+            :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
+            @click="showPassword = !showPassword"
+          >
+            <EyeOff v-if="showPassword" class="w-5 h-5" />
+            <Eye v-else class="w-5 h-5" />
+          </button>
+        </div>
+
+        <AppButton type="submit" variant="primary" block :disabled="loading">
+          {{ loading ? t('login.loading') : t('login.login') }}
         </AppButton>
 
         <div class="flex items-center gap-3 text-text-muted text-sm">
           <div class="flex-1 border-t border-border"></div>
-          <span>{{ t('login.join') }}</span>
+          <span>{{ t('login.or') }}</span>
           <div class="flex-1 border-t border-border"></div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <input
-            :value="shareToken"
-            @input="onTokenInput"
-            type="text"
-            :placeholder="t('login.placeholder')"
-            :disabled="loading"
-            class="flex-1 px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 text-center tracking-widest uppercase"
-          />
-          <button
-            class="p-2.5 bg-surface border border-border rounded-lg text-text-muted hover:text-text-secondary"
-            @click="showScanModal = true"
-          >
-            <QrCode class="w-5 h-5" />
-          </button>
-        </div>
+        <AppButton type="button" variant="outline" block :disabled="loading" @click="submit('create')">
+          {{ t('login.create') }}
+        </AppButton>
 
         <p v-if="error" class="text-danger text-sm">{{ error }}</p>
-      </div>
-
-      <QrScanModal
-        :show="showScanModal"
-        @close="showScanModal = false"
-        @scanned="onScanned"
-      />
+      </form>
     </div>
   </div>
 </template>

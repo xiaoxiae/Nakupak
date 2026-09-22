@@ -6,8 +6,9 @@ import { vi } from 'vitest'
 vi.mock('../../services/api', () => ({
   auth: {
     create: vi.fn(),
-    join: vi.fn(),
+    login: vi.fn(),
     me: vi.fn(),
+    update: vi.fn(),
   },
 }))
 
@@ -35,31 +36,49 @@ describe('auth store', () => {
 
   it('createHousehold sets token and fetches household', async () => {
     authApi.create.mockResolvedValue({ data: { access_token: 'jwt-123' } })
-    authApi.me.mockResolvedValue({ data: { token: 'AAAA-BBBB', created_at: '2024-01-01' } })
+    authApi.me.mockResolvedValue({ data: { name: 'Home', created_at: '2024-01-01' } })
 
     const store = useAuthStore()
-    await store.createHousehold()
+    await store.createHousehold('Home', 'secret')
+    expect(authApi.create).toHaveBeenCalledWith('Home', 'secret')
     expect(store.token).toBe('jwt-123')
     expect(localStorage.setItem).toHaveBeenCalledWith('token', 'jwt-123')
-    expect(store.household).toEqual({ token: 'AAAA-BBBB', created_at: '2024-01-01' })
+    expect(store.household).toEqual({ name: 'Home', created_at: '2024-01-01' })
   })
 
-  it('joinHousehold sets token and fetches household', async () => {
-    authApi.join.mockResolvedValue({ data: { access_token: 'jwt-456' } })
-    authApi.me.mockResolvedValue({ data: { token: 'CCCC-DDDD', created_at: '2024-01-01' } })
+  it('login sets token and fetches household', async () => {
+    authApi.login.mockResolvedValue({ data: { access_token: 'jwt-456' } })
+    authApi.me.mockResolvedValue({ data: { name: 'Home', created_at: '2024-01-01' } })
 
     const store = useAuthStore()
-    await store.joinHousehold('CCCC-DDDD')
+    await store.login('Home', 'secret')
     expect(store.token).toBe('jwt-456')
-    expect(authApi.join).toHaveBeenCalledWith('CCCC-DDDD')
+    expect(authApi.login).toHaveBeenCalledWith('Home', 'secret')
+    expect(store.household.name).toBe('Home')
+  })
+
+  it('login failure leaves the user logged out', async () => {
+    authApi.login.mockRejectedValue({ response: { status: 401 } })
+    const store = useAuthStore()
+    await expect(store.login('Home', 'wrong')).rejects.toBeTruthy()
+    expect(store.token).toBeNull()
+  })
+
+  it('updateHousehold stores the updated household', async () => {
+    authApi.update.mockResolvedValue({ data: { name: 'Flat', created_at: '2024-01-01' } })
+    const store = useAuthStore()
+    store.household = { name: 'Home', created_at: '2024-01-01' }
+    await store.updateHousehold({ name: 'Flat' })
+    expect(authApi.update).toHaveBeenCalledWith({ name: 'Flat' })
+    expect(store.household.name).toBe('Flat')
   })
 
   it('fetchHousehold sets household data', async () => {
-    authApi.me.mockResolvedValue({ data: { token: 'AAAA-BBBB' } })
+    authApi.me.mockResolvedValue({ data: { name: 'AAAA-BBBB' } })
     const store = useAuthStore()
     store.token = 'jwt-123'
     await store.fetchHousehold()
-    expect(store.household).toEqual({ token: 'AAAA-BBBB' })
+    expect(store.household).toEqual({ name: 'AAAA-BBBB' })
   })
 
   it('fetchHousehold calls logout on 401', async () => {
@@ -90,7 +109,7 @@ describe('auth store', () => {
   it('logout clears all state', () => {
     const store = useAuthStore()
     store.token = 'jwt-123'
-    store.household = { token: 'AAAA-BBBB' }
+    store.household = { name: 'AAAA-BBBB' }
     store.logout()
     expect(store.token).toBeNull()
     expect(store.household).toBeNull()

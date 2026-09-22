@@ -8,18 +8,23 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!token.value)
 
-  async function createHousehold() {
-    const response = await auth.create()
+  async function setSession(response) {
     token.value = response.data.access_token
     localStorage.setItem('token', token.value)
     await fetchHousehold()
   }
 
-  async function joinHousehold(shareToken) {
-    const response = await auth.join(shareToken)
-    token.value = response.data.access_token
-    localStorage.setItem('token', token.value)
-    await fetchHousehold()
+  async function createHousehold(name, password) {
+    await setSession(await auth.create(name, password))
+  }
+
+  async function login(name, password) {
+    await setSession(await auth.login(name, password))
+  }
+
+  async function updateHousehold(data) {
+    const response = await auth.update(data)
+    household.value = response.data
   }
 
   async function fetchHousehold() {
@@ -39,5 +44,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  return { household, token, isLoggedIn, createHousehold, joinHousehold, fetchHousehold, logout }
+  return { household, token, isLoggedIn, createHousehold, login, updateHousehold, fetchHousehold, logout }
 })

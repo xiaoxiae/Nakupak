@@ -23,12 +23,12 @@ You are a backend development specialist for Nákupák, a FastAPI shopping list 
 - `app/main.py` — FastAPI app setup, lifespan (auto-runs Alembic migrations), CORS, router includes, WebSocket endpoint, static file serving
 - `app/models.py` — SQLAlchemy models: Household, Category, Item, ShoppingListItem, Recipe, RecipeItem, ShoppingSession, SessionItem
 - `app/database.py` — Engine, SessionLocal, `get_db` dependency
-- `app/auth.py` — JWT creation/validation, `get_current_household` dependency, household token generation
+- `app/auth.py` — JWT creation/validation, `get_current_household` dependency, PBKDF2 password hashing (`hash_password` / `verify_password`)
 - `app/schemas.py` — Pydantic models for all request/response types
 - `app/websocket.py` — `ConnectionManager` class and `broadcast_update` helper
 - `app/llm.py` — Anthropic recipe extraction and postprocessing
 - `app/utils.py` — `strip_emoji`, `sort_key` helpers
-- `app/routers/auth.py` — `/api/auth/create`, `/api/auth/join`, `/api/auth/me`
+- `app/routers/auth.py` — `/api/auth/create` and `/api/auth/login` (household name + password; names match case-insensitively), `GET`/`PATCH /api/auth/me` (rename, change password)
 - `app/routers/items.py` — Item & category CRUD, bulk operations, merge
 - `app/routers/list.py` — Shopping list operations, pool (smart suggestions)
 - `app/routers/recipes.py` — Recipe CRUD, image upload
