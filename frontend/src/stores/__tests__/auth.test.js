@@ -62,13 +62,23 @@ describe('auth store', () => {
     expect(store.household).toEqual({ token: 'AAAA-BBBB' })
   })
 
-  it('fetchHousehold calls logout on error', async () => {
-    authApi.me.mockRejectedValue(new Error('fail'))
+  it('fetchHousehold calls logout on 401', async () => {
+    authApi.me.mockRejectedValue({ response: { status: 401 } })
     const store = useAuthStore()
     store.token = 'jwt-bad'
     await store.fetchHousehold()
     expect(store.token).toBeNull()
     expect(store.household).toBeNull()
+  })
+
+  it('fetchHousehold keeps the session on network or server errors', async () => {
+    const store = useAuthStore()
+    store.token = 'jwt-123'
+    authApi.me.mockRejectedValueOnce(new Error('Network Error'))
+    await store.fetchHousehold()
+    authApi.me.mockRejectedValueOnce({ response: { status: 503 } })
+    await store.fetchHousehold()
+    expect(store.token).toBe('jwt-123')
   })
 
   it('fetchHousehold skips if no token', async () => {

@@ -27,8 +27,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await auth.me()
       household.value = response.data
-    } catch {
-      logout()
+    } catch (e) {
+      // Only an invalid token should end the session; offline or server errors keep it
+      if (e.response?.status === 401) logout()
     }
   }
 
